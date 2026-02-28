@@ -71,7 +71,7 @@ export function Navbar() {
       {/* Right: Action Button */}
       <div className="flex-1 flex justify-end">
         <Link
-          href="/get-started"
+          href="/sign-in"
           className="group flex items-center gap-2 rounded-lg bg-black px-6 py-3 text-base font-bold text-white transition-all hover:scale-105 active:scale-95"
         >
           Be a Clinqer

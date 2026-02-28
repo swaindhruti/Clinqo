@@ -8,7 +8,7 @@ const robotoSlab = Roboto_Slab({
 });
 
 export const metadata: Metadata = {
-  title: "Clinqo | AI Medical Startup",
+  title: "Clinqo | Streamline Clinical Workflows",
   description: "Next-generation AI medical platform.",
 };
 
