@@ -13,6 +13,7 @@ import {
   LogOut,
   User,
   MessageSquare,
+  ChevronRight,
 } from "lucide-react";
 
 import {
@@ -26,18 +27,60 @@ import {
   SidebarMenu,
   SidebarMenuButton,
   SidebarMenuItem,
+  SidebarMenuSub,
+  SidebarMenuSubButton,
+  SidebarMenuSubItem,
   SidebarSeparator,
 } from "@/components/ui/sidebar";
 
+import {
+  Collapsible,
+  CollapsibleContent,
+  CollapsibleTrigger,
+} from "@/components/ui/collapsible";
+
 // Role-based navigation configuration
-const navigationConfig = {
+type NavItem = {
+  title: string;
+  url: string;
+  icon: React.ElementType;
+  isActive?: boolean;
+  items?: { title: string; url: string }[];
+};
+
+type NavigationConfig = {
+  clinic: NavItem[];
+  doctor: NavItem[];
+  admin: NavItem[];
+};
+
+const navigationConfig: NavigationConfig = {
   clinic: [
-    { title: "Dashboard", url: "/clinic", icon: BarChart3 },
-    { title: "Doctors", url: "/clinic/doctors", icon: Stethoscope },
-    { title: "Patients", url: "/clinic/patients", icon: Users },
-    { title: "Appointments", url: "/clinic/appointments", icon: CalendarDays },
-    { title: "Records", url: "/clinic/records", icon: FileText },
-    { title: "Settings", url: "/clinic/settings", icon: Settings },
+    { title: "Overview", url: "/clinic?tab=overview", icon: BarChart3 },
+    {
+      title: "Appointments",
+      url: "/clinic?tab=appointments",
+      icon: CalendarDays,
+      isActive: true, // Default open for demonstration or matching route
+      items: [
+        { title: "Today's", url: "/clinic?tab=appointments&view=today" },
+        { title: "Future", url: "/clinic?tab=appointments&view=future" },
+        { title: "Past", url: "/clinic?tab=appointments&view=past" },
+      ],
+    },
+    {
+      title: "Management",
+      url: "/clinic?tab=settings",
+      icon: Settings,
+      isActive: false,
+      items: [
+        {
+          title: "Operating Schedule",
+          url: "/clinic?tab=settings&view=operating",
+        },
+        { title: "Doctor Schedule", url: "/clinic?tab=settings&view=doctor" },
+      ],
+    },
   ],
   doctor: [
     { title: "Overview", url: "/doctor", icon: BarChart3 },
@@ -79,6 +122,7 @@ export function AppSidebar() {
 
   const navigationItems = navigationConfig[role];
   const currentTab = searchParams.get("tab") || "overview";
+  const currentView = searchParams.get("view") || "today";
 
   return (
     <Sidebar>
@@ -115,21 +159,67 @@ export function AppSidebar() {
           <SidebarGroupContent>
             <SidebarMenu>
               {navigationItems.map((item) => {
-                let isActive = false;
+                let isMainActive = false;
                 if (item.url.includes("?tab=")) {
-                  isActive = item.url.includes(`tab=${currentTab}`);
+                  isMainActive = item.url.includes(`tab=${currentTab}`);
                 } else {
-                  isActive = pathname === item.url;
+                  isMainActive = pathname === item.url;
                 }
+
+                if (item.items && item.items.length > 0) {
+                  return (
+                    <Collapsible
+                      key={item.title}
+                      asChild
+                      defaultOpen={isMainActive || item.isActive}
+                      className="group/collapsible"
+                    >
+                      <SidebarMenuItem>
+                        <CollapsibleTrigger asChild>
+                          <SidebarMenuButton
+                            tooltip={item.title}
+                            isActive={isMainActive}
+                          >
+                            {item.icon && <item.icon />}
+                            <span>{item.title}</span>
+                            <ChevronRight className="ml-auto transition-transform duration-200 group-data-[state=open]/collapsible:rotate-90" />
+                          </SidebarMenuButton>
+                        </CollapsibleTrigger>
+                        <CollapsibleContent>
+                          <SidebarMenuSub>
+                            {item.items.map((subItem) => {
+                              const isSubActive =
+                                isMainActive &&
+                                subItem.url.includes(`view=${currentView}`);
+                              return (
+                                <SidebarMenuSubItem key={subItem.title}>
+                                  <SidebarMenuSubButton
+                                    asChild
+                                    isActive={isSubActive}
+                                  >
+                                    <Link href={subItem.url}>
+                                      <span>{subItem.title}</span>
+                                    </Link>
+                                  </SidebarMenuSubButton>
+                                </SidebarMenuSubItem>
+                              );
+                            })}
+                          </SidebarMenuSub>
+                        </CollapsibleContent>
+                      </SidebarMenuItem>
+                    </Collapsible>
+                  );
+                }
+
                 return (
                   <SidebarMenuItem key={item.title}>
                     <SidebarMenuButton
                       asChild
-                      isActive={isActive}
+                      isActive={isMainActive}
                       tooltip={item.title}
                     >
                       <Link href={item.url}>
-                        <item.icon />
+                        {item.icon && <item.icon />}
                         <span>{item.title}</span>
                       </Link>
                     </SidebarMenuButton>
