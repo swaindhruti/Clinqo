@@ -1,43 +1,26 @@
-export default function DoctorDashboard() {
-  return (
-    <div className="flex flex-1 flex-col gap-6 p-6">
-      <div className="flex items-center justify-between">
-        <div>
-          <h1 className="text-3xl font-bold tracking-tight text-neutral-900">
-            Doctor Overview
-          </h1>
-          <p className="text-muted-foreground mt-1">
-            Manage your schedule and patient consultations.
-          </p>
-        </div>
-      </div>
+import { OverviewSection } from "@/components/features/dashboard/doctor/overview/overview-section";
+import { AppointmentsSection } from "@/components/features/dashboard/doctor/appointments/appointments-section";
+import { ScheduleSection } from "@/components/features/dashboard/doctor/schedule/schedule-section";
+import { ProfileSection } from "@/components/features/dashboard/doctor/profile/profile-section";
 
-      <div className="grid auto-rows-min gap-4 md:grid-cols-3">
-        <div className="bg-white border border-neutral-200 shadow-sm aspect-video rounded-xl p-6 flex flex-col justify-center items-center text-center">
-          <span className="text-sm font-medium text-neutral-500 mb-2">
-            Upcoming Consultations
-          </span>
-          <span className="text-4xl font-bold text-neutral-900">12</span>
-        </div>
-        <div className="bg-white border border-neutral-200 shadow-sm aspect-video rounded-xl p-6 flex flex-col justify-center items-center text-center">
-          <span className="text-sm font-medium text-neutral-500 mb-2">
-            Pending Reports
-          </span>
-          <span className="text-4xl font-bold text-neutral-900">5</span>
-        </div>
-        <div className="bg-white border border-neutral-200 shadow-sm aspect-video rounded-xl p-6 flex flex-col justify-center items-center text-center">
-          <span className="text-sm font-medium text-neutral-500 mb-2">
-            Patient Messages
-          </span>
-          <span className="text-4xl font-bold text-neutral-900">3</span>
-        </div>
-      </div>
+type PageProps = {
+  searchParams: Promise<{ [key: string]: string | string[] | undefined }>;
+};
 
-      <div className="bg-white border border-neutral-200 shadow-sm min-h-[50vh] flex-1 rounded-xl p-6 flex items-center justify-center">
-        <p className="text-neutral-500 font-medium">
-          Main Dashboard Content Area
-        </p>
-      </div>
-    </div>
-  );
+export default async function DoctorDashboard({ searchParams }: PageProps) {
+  const params = await searchParams;
+  // Extract the tab parameter from the URL, defaulting to 'overview'
+  const tab = typeof params.tab === "string" ? params.tab : "overview";
+
+  // Determine which component to render based on the tab
+  let ContentComponent = <OverviewSection />;
+  if (tab === "appointments") {
+    ContentComponent = <AppointmentsSection />;
+  } else if (tab === "schedule") {
+    ContentComponent = <ScheduleSection />;
+  } else if (tab === "profile") {
+    ContentComponent = <ProfileSection />;
+  }
+
+  return <div className="flex flex-1 flex-col p-6">{ContentComponent}</div>;
 }
