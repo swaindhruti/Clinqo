@@ -13,7 +13,7 @@ export default function SignInPage() {
       <div className="flex flex-col space-y-3">
         {/* Server Components are fast! These links act as buttons. */}
         <a
-          href="#"
+          href="/clinic"
           className="flex items-center justify-between p-4 rounded-xl border border-neutral-200 bg-white hover:border-black hover:shadow-sm transition-all group"
         >
           <div className="flex flex-col text-left">
@@ -40,7 +40,7 @@ export default function SignInPage() {
         </a>
 
         <a
-          href="#"
+          href="/doctor"
           className="flex items-center justify-between p-4 rounded-xl border border-neutral-200 bg-white hover:border-black hover:shadow-sm transition-all group"
         >
           <div className="flex flex-col text-left">
@@ -67,7 +67,7 @@ export default function SignInPage() {
         </a>
 
         <a
-          href="#"
+          href="/admin"
           className="flex items-center justify-between p-4 rounded-xl border border-neutral-200 bg-white hover:border-black hover:shadow-sm transition-all group"
         >
           <div className="flex flex-col text-left">

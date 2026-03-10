@@ -1,67 +1,104 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useMemo } from "react";
 import { useSearchParams } from "next/navigation";
 import { DatePickerFilter } from "./date-picker-filter";
-import { Search, Clock } from "lucide-react";
+import { Search, Clock, Loader2, AlertCircle } from "lucide-react";
+import { useQuery } from "@tanstack/react-query";
+import { apiClient } from "@/lib/api-client";
+import { Appointment } from "@/types/api";
+import { format, isBefore, isAfter, startOfDay } from "date-fns";
 
-type Tab = "today" | "past" | "future";
+type Tab = "today" | "past" | "upcoming";
 
-// Mock Data
-const MOCK_APPOINTMENTS = [
-  {
-    id: 1,
-    patient: "Alice Cooper",
-    time: "09:30 AM",
-    date: "2023-11-01",
-    doctor: "Dr. Sarah Chen",
-    category: "Follow-up",
-    status: "Upcoming",
-    type: "today",
-  },
-  {
-    id: 2,
-    patient: "Bob Marley",
-    time: "11:00 AM",
-    date: "2023-11-01",
-    doctor: "Dr. Michael Ross",
-    category: "New Consultation",
-    status: "In Progress",
-    type: "today",
-  },
-  {
-    id: 3,
-    patient: "Charlie Puth",
-    time: "02:15 PM",
-    date: "2023-10-15",
-    doctor: "Dr. Sarah Chen",
-    category: "Routine Checkup",
-    status: "Completed",
-    type: "past",
-  },
-  {
-    id: 4,
-    patient: "David Bowie",
-    time: "10:00 AM",
-    date: "2023-12-05",
-    doctor: "Dr. Michael Ross",
-    category: "Surgical Review",
-    status: "Scheduled",
-    type: "future",
-  },
-];
+// No specific Doctor ID needed for global clinic view
+
+// Mock Data Structure
+type UiAppointment = {
+  id: string;
+  patient: string;
+  time: string;
+  date: string;
+  doctor: string;
+  category: string;
+  status: string;
+  type: Tab;
+};
 
 export function AppointmentTabs() {
   const searchParams = useSearchParams();
-  const activeTab = (searchParams.get("view") || "today") as Tab;
-  const [filterDate, setFilterDate] = useState<Date | undefined>(new Date());
+  const activeTab = (searchParams.get("view") || "upcoming") as Tab;
+  const [filterDate, setFilterDate] = useState<Date | undefined>(undefined);
   const [searchQuery, setSearchQuery] = useState("");
 
-  const filteredAppointments = MOCK_APPOINTMENTS.filter((app) => {
-    // 1. Filter by Tab
-    if (activeTab === "today" && app.type !== "today") return false;
-    if (activeTab === "past" && app.type !== "past") return false;
-    if (activeTab === "future" && app.type !== "future") return false;
+  const queryDate =
+    activeTab === "today"
+      ? format(new Date(), "yyyy-MM-dd")
+      : activeTab === "upcoming"
+        ? filterDate
+          ? format(filterDate, "yyyy-MM-dd")
+          : ""
+        : filterDate
+          ? format(filterDate, "yyyy-MM-dd")
+          : format(new Date(), "yyyy-MM-dd");
+
+  const {
+    data: rawAppointments,
+    isLoading,
+    error,
+  } = useQuery({
+    queryKey: ["clinic-appointments", "all-doctors", queryDate, activeTab],
+    queryFn: () => {
+      const url = queryDate
+        ? `/appointments?date=${queryDate}`
+        : `/appointments`;
+      return apiClient.get<Appointment[]>(url);
+    },
+  });
+
+  const allAppointments = useMemo(() => {
+    if (!rawAppointments) return [];
+    const today = startOfDay(new Date());
+
+    return rawAppointments.map((app): UiAppointment => {
+      const appDate = startOfDay(new Date(app.date));
+      let type: Tab = "today";
+
+      if (isBefore(appDate, today)) {
+        type = "past";
+      } else if (isAfter(appDate, today)) {
+        type = "upcoming";
+      }
+
+      return {
+        id: app.id,
+        patient:
+          app.patient_name || `Patient ${app.patient_id.substring(0, 6)}`,
+        time: `Slot ${app.slot}`,
+        date: app.date,
+        doctor: app.doctor_name || "Dr. Smith Sandbox",
+        category: "Consultation",
+        status:
+          app.status === "booked"
+            ? type === "past"
+              ? "Missed"
+              : "Upcoming"
+            : app.status,
+        type: type,
+      };
+    });
+  }, [rawAppointments]);
+
+  const filteredAppointments = allAppointments.filter((app) => {
+    // 1. Filter by Tab logic cleanly using string comparisons
+    if (!filterDate) {
+      const appDateStr = app.date;
+      const todayStr = format(new Date(), "yyyy-MM-dd");
+
+      if (activeTab === "today" && appDateStr !== todayStr) return false;
+      if (activeTab === "upcoming" && appDateStr <= todayStr) return false;
+      if (activeTab === "past" && appDateStr >= todayStr) return false;
+    }
 
     // 2. Filter by Search Query
     if (searchQuery) {
@@ -107,7 +144,7 @@ export function AppointmentTabs() {
               />
             </div>
 
-            {/* Date Picker for Past and Future */}
+            {/* Date Picker for Past and Upcoming */}
             {activeTab !== "today" && (
               <div className="flex items-center gap-3 bg-white border border-neutral-200 rounded-lg pl-3">
                 <span className="text-xs font-bold text-neutral-400 uppercase tracking-widest shrink-0">
@@ -121,7 +158,26 @@ export function AppointmentTabs() {
 
         {/* Table Body */}
         <div className="flex-1 overflow-x-auto">
-          {filteredAppointments.length === 0 ? (
+          {isLoading ? (
+            <div className="flex flex-col items-center justify-center text-center p-12 h-full">
+              <Loader2 className="w-8 h-8 text-blue-500 animate-spin mb-4" />
+              <p className="text-sm font-medium text-neutral-500">
+                Loading appointments...
+              </p>
+            </div>
+          ) : error ? (
+            <div className="flex flex-col items-center justify-center text-center p-12 h-full">
+              <div className="w-12 h-12 bg-red-50 text-red-500 rounded-full flex items-center justify-center mb-4">
+                <AlertCircle className="w-6 h-6" />
+              </div>
+              <p className="text-sm font-medium text-red-600">
+                Failed to load appointments.
+              </p>
+              <p className="text-xs text-neutral-500 mt-1">
+                {(error as Error).message}
+              </p>
+            </div>
+          ) : filteredAppointments.length === 0 ? (
             <div className="flex flex-col items-center justify-center text-center p-12 h-full">
               <div className="w-16 h-16 bg-neutral-100 rounded-full flex items-center justify-center mb-4 text-neutral-400">
                 <Clock className="w-8 h-8" />
@@ -157,7 +213,7 @@ export function AppointmentTabs() {
                     </>
                   )}
 
-                  {activeTab === "future" && (
+                  {activeTab === "upcoming" && (
                     <>
                       <th className="px-6 py-4">Time Slot</th>
                       <th className="px-6 py-4">Date</th>
@@ -221,8 +277,8 @@ export function AppointmentTabs() {
                       </>
                     )}
 
-                    {/* Conditional Columns for Future */}
-                    {activeTab === "future" && (
+                    {/* Conditional Columns for Upcoming */}
+                    {activeTab === "upcoming" && (
                       <>
                         <td className="px-6 py-4 font-mono font-medium text-neutral-900">
                           {app.time}

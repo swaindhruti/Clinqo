@@ -1,57 +1,68 @@
 "use client";
 
 import { useSearchParams, useRouter } from "next/navigation";
-import { Search, Clock, ChevronRight } from "lucide-react";
+import { Search, Clock, ChevronRight, Loader2 } from "lucide-react";
 import { useState } from "react";
 // Reusing the date picker from the clinic UI for consistent UX
 import { DatePickerFilter } from "../../clinic/appointments/date-picker-filter";
+import { useQuery } from "@tanstack/react-query";
+import { apiClient } from "@/lib/api-client";
+import { format } from "date-fns";
+import { Appointment } from "@/types/api";
 
-type Tab = "today" | "past";
+type Tab = "today" | "past" | "upcoming";
 
-// Mock Data specific to a doctor
-const DOCTOR_APPOINTMENTS = [
-  {
-    id: 1,
-    patient: "Alice Cooper",
-    time: "09:30 AM",
-    date: "2023-11-01",
-    category: "Follow-up",
-    status: "Upcoming",
-    type: "today",
-  },
-  {
-    id: 2,
-    patient: "Bob Marley",
-    time: "11:00 AM",
-    date: "2023-11-01",
-    category: "New Consultation",
-    status: "In Progress",
-    type: "today",
-  },
-  {
-    id: 3,
-    patient: "Charlie Puth",
-    time: "02:15 PM",
-    date: "2023-10-15",
-    category: "Routine Checkup",
-    status: "Completed",
-    type: "past",
-  },
-];
+// For demo purposes, hardcoding a doctor UUID. In a real app this comes from auth context.
+const DEMO_DOCTOR_ID = "fe38be4f-d5f6-4d49-8366-bd235e43a86e";
 
 export function AppointmentsSection() {
   const searchParams = useSearchParams();
   const router = useRouter();
-  const activeTab = (searchParams.get("view") || "today") as Tab;
-  const [filterDate, setFilterDate] = useState<Date | undefined>(new Date());
+  const activeTab = (searchParams.get("view") || "upcoming") as Tab;
+  const [filterDate, setFilterDate] = useState<Date | undefined>(undefined);
   const [searchQuery, setSearchQuery] = useState("");
 
-  const filteredAppointments = DOCTOR_APPOINTMENTS.filter((app) => {
-    // 1. Filter by Tab
-    if (activeTab === "today" && app.type !== "today") return false;
-    if (activeTab === "past" && app.type !== "past") return false;
+  const queryDate =
+    activeTab === "today"
+      ? format(new Date(), "yyyy-MM-dd")
+      : activeTab === "upcoming"
+        ? filterDate
+          ? format(filterDate, "yyyy-MM-dd")
+          : ""
+        : filterDate
+          ? format(filterDate, "yyyy-MM-dd")
+          : format(new Date(), "yyyy-MM-dd");
 
-    // 2. Filter by Search Query
+  // Fetch appointments for the selected date
+  const {
+    data: rawAppointments,
+    isLoading,
+    error,
+  } = useQuery({
+    queryKey: ["appointments", DEMO_DOCTOR_ID, queryDate, activeTab],
+    queryFn: () => {
+      const url = queryDate
+        ? `/appointments/doctors/${DEMO_DOCTOR_ID}/appointments?date=${queryDate}`
+        : `/appointments/doctors/${DEMO_DOCTOR_ID}/appointments`;
+      return apiClient.get<Appointment[]>(url);
+    },
+  });
+
+  // Transform raw API data to match the UI's expected format
+  const mappedAppointments = (rawAppointments || []).map((app) => ({
+    id: app.id,
+    patient: app.patient_name
+      ? app.patient_name
+      : `Patient ${app.patient_id.substring(0, 6)}`,
+    time: `Slot ${app.slot}`,
+    date: app.date,
+    category: "Consultation",
+    status: app.status === "booked" ? "Upcoming" : app.status,
+    type: activeTab,
+  }));
+
+  const filteredAppointments = mappedAppointments.filter((app) => {
+    // 1. Filter by Search Query
     if (searchQuery) {
       const q = searchQuery.toLowerCase();
       if (
@@ -60,6 +71,21 @@ export function AppointmentsSection() {
       ) {
         return false;
       }
+    }
+
+    // 2. Separate into the correct tabs
+    if (!filterDate) {
+      const appDateStr = app.date;
+      const todayStr = format(new Date(), "yyyy-MM-dd");
+
+      // For "today" tab, strictly match today's date
+      if (activeTab === "today" && appDateStr !== todayStr) return false;
+
+      // For "upcoming" tab, strictly match future dates (> today)
+      if (activeTab === "upcoming" && appDateStr <= todayStr) return false;
+
+      // For "past" tab, strictly match past dates (< today)
+      if (activeTab === "past" && appDateStr >= todayStr) return false;
     }
 
     return true;
@@ -94,8 +120,8 @@ export function AppointmentsSection() {
               />
             </div>
 
-            {/* Date Picker for Past */}
-            {activeTab === "past" && (
+            {/* Date Picker for Past and Upcoming */}
+            {(activeTab === "past" || activeTab === "upcoming") && (
               <div className="flex items-center gap-3 bg-white border border-neutral-200 rounded-lg pl-3">
                 <span className="text-xs font-bold text-neutral-400 uppercase tracking-widest shrink-0">
                   Date
@@ -108,7 +134,26 @@ export function AppointmentsSection() {
 
         {/* Table Body */}
         <div className="flex-1 overflow-x-auto">
-          {filteredAppointments.length === 0 ? (
+          {isLoading ? (
+            <div className="flex flex-col items-center justify-center text-center p-12 h-full">
+              <Loader2 className="w-8 h-8 text-blue-500 animate-spin mb-4" />
+              <p className="text-sm font-medium text-neutral-500">
+                Loading appointments...
+              </p>
+            </div>
+          ) : error ? (
+            <div className="flex flex-col items-center justify-center text-center p-12 h-full">
+              <div className="w-12 h-12 bg-red-50 text-red-500 rounded-full flex items-center justify-center mb-4">
+                <Clock className="w-6 h-6" />
+              </div>
+              <p className="text-sm font-medium text-red-600">
+                Failed to load appointments.
+              </p>
+              <p className="text-xs text-neutral-500 mt-1">
+                {(error as Error).message}
+              </p>
+            </div>
+          ) : filteredAppointments.length === 0 ? (
             <div className="flex flex-col items-center justify-center text-center p-12 h-full">
               <div className="w-16 h-16 bg-neutral-100 rounded-full flex items-center justify-center mb-4 text-neutral-400">
                 <Clock className="w-8 h-8" />
@@ -136,7 +181,7 @@ export function AppointmentsSection() {
                     </>
                   )}
 
-                  {activeTab === "past" && (
+                  {(activeTab === "past" || activeTab === "upcoming") && (
                     <>
                       <th className="px-6 py-4">Date</th>
                       <th className="px-6 py-4">Status</th>
@@ -189,8 +234,8 @@ export function AppointmentsSection() {
                       </>
                     )}
 
-                    {/* Conditional Columns for Past */}
-                    {activeTab === "past" && (
+                    {/* Conditional Columns for Past and Upcoming */}
+                    {(activeTab === "past" || activeTab === "upcoming") && (
                       <>
                         <td className="px-6 py-4 font-mono font-medium text-neutral-900 whitespace-nowrap">
                           {app.date}

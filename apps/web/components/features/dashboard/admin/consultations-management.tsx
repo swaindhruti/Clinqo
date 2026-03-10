@@ -2,11 +2,28 @@
 
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Button } from "@/components/ui/button";
-import { MoreHorizontal, Calendar, Clock, Video } from "lucide-react";
+import {
+  MoreHorizontal,
+  Calendar,
+  Clock,
+  Video,
+  Loader2,
+  AlertCircle,
+} from "lucide-react";
 import { DataTable } from "@/components/ui/data-table";
 import { ColumnDef } from "@tanstack/react-table";
+import { useQuery } from "@tanstack/react-query";
+import { apiClient } from "@/lib/api-client";
+import { Appointment } from "@/types/api";
+import { format } from "date-fns";
+import { useMemo, useState } from "react";
+import { useSearchParams } from "next/navigation";
+// Import the DatePickerFilter
+import { DatePickerFilter } from "../clinic/appointments/date-picker-filter";
 
-// Type Definition
+// Constants are not needed for a global fetch
+
+// Type Definition for the Table
 export type Consultation = {
   id: string;
   patientName: string;
@@ -16,94 +33,6 @@ export type Consultation = {
   status: "upcoming" | "completed" | "cancelled";
   type: "video" | "in-person";
 };
-
-// Dummy Data
-const upcomingConsultations: Consultation[] = [
-  {
-    id: "APT-9021",
-    patientName: "Alice Walker",
-    doctorName: "Dr. Sarah Chen",
-    clinicName: "MetroHealth Clinic",
-    dateTime: "Oct 25, 2024 - 10:00 AM",
-    status: "upcoming",
-    type: "video",
-  },
-  {
-    id: "APT-9022",
-    patientName: "Robert Fox",
-    doctorName: "Dr. Marcus Johnson",
-    clinicName: "Westside Dental",
-    dateTime: "Oct 25, 2024 - 11:30 AM",
-    status: "upcoming",
-    type: "in-person",
-  },
-  {
-    id: "APT-9023",
-    patientName: "Elena Rodriguez",
-    doctorName: "Dr. Emily Rostova",
-    clinicName: "Sunrise Care Hub",
-    dateTime: "Oct 26, 2024 - 09:15 AM",
-    status: "upcoming",
-    type: "video",
-  },
-  {
-    id: "APT-9025",
-    patientName: "David Kim",
-    doctorName: "Dr. James Wilson",
-    clinicName: "Pioneer Orthopedics",
-    dateTime: "Oct 26, 2024 - 02:00 PM",
-    status: "upcoming",
-    type: "in-person",
-  },
-  {
-    id: "APT-9026",
-    patientName: "Sofia M.",
-    doctorName: "Dr. Anita Patel",
-    clinicName: "MetroHealth Clinic",
-    dateTime: "Oct 27, 2024 - 10:45 AM",
-    status: "upcoming",
-    type: "video",
-  },
-];
-
-const completedConsultations: Consultation[] = [
-  {
-    id: "APT-8010",
-    patientName: "John Doe",
-    doctorName: "Dr. Sarah Chen",
-    clinicName: "MetroHealth Clinic",
-    dateTime: "Oct 24, 2024 - 09:00 AM",
-    status: "completed",
-    type: "in-person",
-  },
-  {
-    id: "APT-8009",
-    patientName: "Maria Garcia",
-    doctorName: "Dr. James Wilson",
-    clinicName: "Pioneer Orthopedics",
-    dateTime: "Oct 23, 2024 - 03:30 PM",
-    status: "completed",
-    type: "video",
-  },
-  {
-    id: "APT-8005",
-    patientName: "James Smith",
-    doctorName: "Dr. Marcus Johnson",
-    clinicName: "Westside Dental",
-    dateTime: "Oct 22, 2024 - 11:00 AM",
-    status: "completed",
-    type: "in-person",
-  },
-  {
-    id: "APT-8001",
-    patientName: "Patricia B.",
-    doctorName: "Dr. Anita Patel",
-    clinicName: "MetroHealth Clinic",
-    dateTime: "Oct 20, 2024 - 01:15 PM",
-    status: "completed",
-    type: "video",
-  },
-];
 
 // Columns Definition
 export const columns: ColumnDef<Consultation>[] = [
@@ -174,9 +103,81 @@ export const columns: ColumnDef<Consultation>[] = [
 ];
 
 export function ConsultationsManagement() {
+  const searchParams = useSearchParams();
+  const activeView = searchParams.get("view") || "upcoming";
+  const [filterDate, setFilterDate] = useState<Date | undefined>(undefined);
+
+  const queryDate =
+    activeView === "today"
+      ? format(new Date(), "yyyy-MM-dd")
+      : activeView === "upcoming"
+        ? filterDate
+          ? format(filterDate, "yyyy-MM-dd")
+          : ""
+        : filterDate
+          ? format(filterDate, "yyyy-MM-dd")
+          : format(new Date(), "yyyy-MM-dd");
+
+  const {
+    data: rawAppointments,
+    isLoading,
+    error,
+  } = useQuery({
+    queryKey: ["admin-appointments", "all-doctors", queryDate, activeView],
+    queryFn: () => {
+      const url = queryDate
+        ? `/appointments?date=${queryDate}`
+        : `/appointments`;
+      return apiClient.get<Appointment[]>(url);
+    },
+  });
+
+  const { upcomingConsultations, completedConsultations } = useMemo(() => {
+    if (!rawAppointments)
+      return { upcomingConsultations: [], completedConsultations: [] };
+
+    const upcoming: Consultation[] = [];
+    const completed: Consultation[] = [];
+    const todayStr = format(new Date(), "yyyy-MM-dd");
+
+    rawAppointments.forEach((app) => {
+      // 1. Strict Date Filtering
+      if (!filterDate) {
+        if (activeView === "today" && app.date !== todayStr) return;
+        if (activeView === "upcoming" && app.date <= todayStr) return;
+        if (activeView === "past" && app.date >= todayStr) return;
+      }
+
+      const consultation: Consultation = {
+        id: app.id,
+        patientName:
+          app.patient_name || `Patient ${app.patient_id.substring(0, 6)}`,
+        doctorName: app.doctor_name || "Dr. Smith Sandbox",
+        clinicName: "Global Network",
+        dateTime: `${app.date} - Slot ${app.slot}`,
+        status:
+          app.status === "booked"
+            ? "upcoming"
+            : (app.status as "completed" | "cancelled" | "upcoming"),
+        type: "in-person", // Defaulting as API doesn't specify type
+      };
+
+      if (app.status === "booked") {
+        upcoming.push(consultation);
+      } else {
+        completed.push(consultation);
+      }
+    });
+
+    return {
+      upcomingConsultations: upcoming,
+      completedConsultations: completed,
+    };
+  }, [rawAppointments, activeView, filterDate]);
+
   return (
     <div className="flex flex-col gap-6 animate-in fade-in duration-500">
-      <div className="flex items-center justify-between">
+      <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4">
         <div>
           <h2 className="text-2xl font-bold tracking-tight text-neutral-900">
             All Consultations
@@ -185,9 +186,20 @@ export function ConsultationsManagement() {
             Platform-wide oversight of upcoming and past medical appointments.
           </p>
         </div>
+
+        {/* Date Picker Filter */}
+        <div className="flex items-center gap-3 bg-white border border-neutral-200 rounded-lg pl-3 shadow-sm h-10 w-full sm:w-auto">
+          <span className="text-xs font-bold text-neutral-400 uppercase tracking-widest shrink-0">
+            Date
+          </span>
+          <DatePickerFilter date={filterDate} setDate={setFilterDate} />
+        </div>
       </div>
 
-      <Tabs defaultValue="upcoming" className="w-full">
+      <Tabs
+        defaultValue={activeView === "past" ? "completed" : "upcoming"}
+        className="w-full"
+      >
         <TabsList className="grid w-full max-w-md grid-cols-2 mb-6">
           <TabsTrigger value="upcoming">
             Upcoming
@@ -199,31 +211,56 @@ export function ConsultationsManagement() {
         </TabsList>
 
         <TabsContent value="upcoming" className="mt-0 outline-none">
-          <DataTable
-            columns={columns}
-            data={upcomingConsultations}
-            searchKey="patientName"
-            searchPlaceholder="Search appointments by patient..."
-            filterColumn="type"
-            filterOptions={[
-              { label: "Video", value: "Video" },
-              { label: "In-person", value: "In-person" },
-            ]}
-          />
+          {isLoading ? (
+            <div className="flex flex-col items-center justify-center p-20">
+              <Loader2 className="h-8 w-8 animate-spin text-blue-500" />
+              <p className="mt-4 text-sm text-neutral-500">
+                Loading platform consultations...
+              </p>
+            </div>
+          ) : error ? (
+            <div className="flex flex-col items-center justify-center p-20 text-red-500">
+              <AlertCircle className="h-10 w-10 mb-4" />
+              <p className="text-lg font-semibold">
+                Failed to load consultations
+              </p>
+              <p className="text-sm mt-1">
+                Please ensure the backend is running.
+              </p>
+            </div>
+          ) : (
+            <DataTable
+              columns={columns}
+              data={upcomingConsultations}
+              searchKey="patientName"
+              searchPlaceholder="Search appointments by patient..."
+              filterColumn="type"
+              filterOptions={[
+                { label: "Video", value: "Video" },
+                { label: "In-person", value: "In-person" },
+              ]}
+            />
+          )}
         </TabsContent>
 
         <TabsContent value="completed" className="mt-0 outline-none">
-          <DataTable
-            columns={columns}
-            data={completedConsultations}
-            searchKey="patientName"
-            searchPlaceholder="Search appointments by patient..."
-            filterColumn="type"
-            filterOptions={[
-              { label: "Video", value: "Video" },
-              { label: "In-person", value: "In-person" },
-            ]}
-          />
+          {isLoading ? (
+            <div className="flex flex-col items-center justify-center p-20">
+              <Loader2 className="h-8 w-8 animate-spin text-blue-500" />
+            </div>
+          ) : (
+            <DataTable
+              columns={columns}
+              data={completedConsultations}
+              searchKey="patientName"
+              searchPlaceholder="Search appointments by patient..."
+              filterColumn="type"
+              filterOptions={[
+                { label: "Video", value: "Video" },
+                { label: "In-person", value: "In-person" },
+              ]}
+            />
+          )}
         </TabsContent>
       </Tabs>
     </div>

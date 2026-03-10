@@ -62,7 +62,7 @@ const navigationConfig: NavigationConfig = {
       isActive: true, // Default open for demonstration or matching route
       items: [
         { title: "Today's", url: "/clinic?tab=appointments&view=today" },
-        { title: "Future", url: "/clinic?tab=appointments&view=future" },
+        { title: "Upcoming", url: "/clinic?tab=appointments&view=upcoming" },
         { title: "Past", url: "/clinic?tab=appointments&view=past" },
       ],
     },
@@ -89,6 +89,7 @@ const navigationConfig: NavigationConfig = {
       isActive: true,
       items: [
         { title: "Today's", url: "/doctor?tab=appointments&view=today" },
+        { title: "Upcoming", url: "/doctor?tab=appointments&view=upcoming" },
         { title: "Past", url: "/doctor?tab=appointments&view=past" },
       ],
     },
@@ -108,6 +109,12 @@ const navigationConfig: NavigationConfig = {
       title: "All Consultations",
       url: "/admin?tab=consultations",
       icon: CalendarDays,
+      isActive: true,
+      items: [
+        { title: "Today's", url: "/admin?tab=consultations&view=today" },
+        { title: "Upcoming", url: "/admin?tab=consultations&view=upcoming" },
+        { title: "Past", url: "/admin?tab=consultations&view=past" },
+      ],
     },
     {
       title: "Mass Communication",
