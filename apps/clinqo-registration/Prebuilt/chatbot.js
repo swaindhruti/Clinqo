@@ -493,7 +493,9 @@ async function processIncomingMessage(messageData) {
               
               console.log(`✅ Appointment booked successfully!`);
               
-              await sendWhatsAppMessage(waId, `Thank you! Your appointment has been confirmed! 🎉\n\nAppointment Details:\n📝 Name: ${updatedInfo.name}\n🎂 Age: ${updatedInfo.age}\n👤 Gender: ${updatedInfo.sex}\n🆔 Patient ID: ${updatedInfo.patient_id}\n👨‍⚕️ Doctor: ${updatedInfo.doctor}\n📅 Date: ${updatedInfo.date}\n⏰ Time: ${updatedInfo.hour}\n\nYour appointment is confirmed!`);
+              const qrCodeUrl = `https://api.qrserver.com/v1/create-qr-code/?size=300x300&data=${appointment.check_in_code}`;
+              
+              await sendWhatsAppMessage(waId, `Thank you! Your appointment has been confirmed! 🎉\n\nAppointment Details:\n📝 Name: ${updatedInfo.name}\n🎂 Age: ${updatedInfo.age}\n👤 Gender: ${updatedInfo.sex}\n🆔 Patient ID: ${updatedInfo.patient_id}\n👨‍⚕️ Doctor: ${updatedInfo.doctor}\n📅 Date: ${updatedInfo.date}\n⏰ Time: ${updatedInfo.hour}\n\n🔑 Check-in Code: *${appointment.check_in_code}*\n\nShow this QR code at the front desk to check in:\n${qrCodeUrl}`);
               
               // Clear user data after successful appointment completion
               console.log(`\n🧹 Clearing all data for completed appointment...`);
@@ -579,7 +581,9 @@ async function processIncomingMessage(messageData) {
           
           console.log(`✅ Appointment booked successfully!`);
           
-          await sendWhatsAppMessage(waId, `Thank you! Your appointment has been confirmed! 🎉\n\nAppointment Details:\n📝 Name: ${finalInfo.name}\n🎂 Age: ${finalInfo.age}\n👤 Gender: ${finalInfo.sex}\n🆔 Patient ID: ${finalInfo.patient_id}\n👨‍⚕️ Doctor: ${finalInfo.doctor}\n📅 Date: ${finalInfo.date}\n⏰ Time: ${finalInfo.hour}\n\nYour appointment is confirmed!`);
+          const qrCodeUrl = `https://api.qrserver.com/v1/create-qr-code/?size=300x300&data=${appointment.check_in_code}`;
+          
+          await sendWhatsAppMessage(waId, `Thank you! Your appointment has been confirmed! 🎉\n\nAppointment Details:\n📝 Name: ${finalInfo.name}\n🎂 Age: ${finalInfo.age}\n👤 Gender: ${finalInfo.sex}\n🆔 Patient ID: ${finalInfo.patient_id}\n👨‍⚕️ Doctor: ${finalInfo.doctor}\n📅 Date: ${finalInfo.date}\n⏰ Time: ${finalInfo.hour}\n\n🔑 Check-in Code: *${appointment.check_in_code}*\n\nShow this QR code at the front desk to check in:\n${qrCodeUrl}`);
           
           // Clear user data after successful appointment completion
           console.log(`\n🧹 Clearing all data for completed appointment...`);

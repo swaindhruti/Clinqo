@@ -11,10 +11,15 @@ async function handleResponse<T>(response: Response): Promise<T> {
   const data = await response.json();
   
   if (!response.ok) {
+    // FastAPI returns errors in 'detail' field
+    const message = data.message || 
+                   (data.detail && typeof data.detail === 'object' ? data.detail.message : data.detail) || 
+                   'An error occurred while fetching the data.';
+                   
     throw new APIError(
       response.status,
-      data.message || 'An error occurred while fetching the data.',
-      data.details
+      message,
+      data.details || data.detail
     );
   }
 

@@ -14,7 +14,10 @@ class AppointmentRepository:
     
     async def get_by_id(self, appointment_id: UUID) -> Optional[Appointment]:
         result = await self.db.execute(
-            select(Appointment).where(Appointment.id == appointment_id)
+            select(Appointment).options(
+                joinedload(Appointment.patient),
+                joinedload(Appointment.doctor)
+            ).where(Appointment.id == appointment_id)
         )
         return result.scalar_one_or_none()
     
@@ -40,7 +43,7 @@ class AppointmentRepository:
         result = await self.db.execute(query.order_by(Appointment.slot))
         return list(result.scalars().all())
 
-    async def list_all(self, appointment_date: Optional[date] = None) -> List[Appointment]:
+    async def list_all(self, appointment_date: Optional[date] = None, patient_id: Optional[UUID] = None) -> List[Appointment]:
         query = select(Appointment).options(
             joinedload(Appointment.patient),
             joinedload(Appointment.doctor)
@@ -49,8 +52,10 @@ class AppointmentRepository:
         )
         if appointment_date:
             query = query.where(Appointment.date == appointment_date)
+        if patient_id:
+            query = query.where(Appointment.patient_id == patient_id)
             
-        result = await self.db.execute(query.order_by(Appointment.date, Appointment.slot))
+        result = await self.db.execute(query.order_by(Appointment.date.desc(), Appointment.slot))
         return list(result.scalars().all())
     
     async def list_by_date(self, appointment_date: date) -> List[Appointment]:
@@ -65,13 +70,23 @@ class AppointmentRepository:
         )
         return list(result.scalars().all())
     
+    async def get_by_check_in_code(self, check_in_code: str) -> Optional[Appointment]:
+        result = await self.db.execute(
+            select(Appointment).options(
+                joinedload(Appointment.patient),
+                joinedload(Appointment.doctor)
+            ).where(Appointment.check_in_code == check_in_code)
+        )
+        return result.scalar_one_or_none()
+    
     async def atomic_book_slot(
         self, 
         doctor_id: UUID, 
         appointment_date: date,
         patient_id: UUID,
         time_slot: Optional[int] = None,
-        idempotency_key: Optional[str] = None
+        idempotency_key: Optional[str] = None,
+        check_in_code: Optional[str] = None
     ) -> Appointment:
         """
         Atomically book a slot using capacity decrement approach.
@@ -106,7 +121,8 @@ class AppointmentRepository:
             slot=slot,
             time_slot=time_slot,
             status=AppointmentStatus.BOOKED,
-            idempotency_key=idempotency_key
+            idempotency_key=idempotency_key,
+            check_in_code=check_in_code
         )
         
         self.db.add(appointment)

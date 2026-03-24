@@ -33,6 +33,7 @@ class Patient(Base):
     gender: Mapped[Optional[str]] = mapped_column(String(20), nullable=True)
     phone: Mapped[str] = mapped_column(String(20), nullable=False, index=True)
     email: Mapped[Optional[str]] = mapped_column(String(255), nullable=True)
+    blood_group: Mapped[Optional[str]] = mapped_column(String(10), nullable=True)
     created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=datetime.utcnow)
     
     appointments: Mapped[list["Appointment"]] = relationship("Appointment", back_populates="patient")
@@ -99,6 +100,7 @@ class Appointment(Base):
     slot: Mapped[int] = mapped_column(Integer, nullable=False)
     time_slot: Mapped[Optional[int]] = mapped_column(Integer, nullable=True)
     status: Mapped[AppointmentStatus] = mapped_column(SQLEnum(AppointmentStatus), nullable=False, default=AppointmentStatus.BOOKED)
+    check_in_code: Mapped[Optional[str]] = mapped_column(String(10), unique=True, index=True, nullable=True)
     idempotency_key: Mapped[Optional[str]] = mapped_column(String(255), nullable=True, index=True)
     created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=datetime.utcnow)
     updated_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=datetime.utcnow, onupdate=datetime.utcnow)
@@ -111,6 +113,7 @@ class Appointment(Base):
         UniqueConstraint("doctor_id", "date", "slot", name="uq_doctor_date_slot"),
         Index("ix_appointment_date", "doctor_id", "date"),
         Index("ix_appointment_idempotency", "idempotency_key"),
+        Index("ix_appointment_check_in_code", "check_in_code"),
     )
 
 

@@ -3,10 +3,12 @@
 import { useState, useMemo } from "react";
 import { useSearchParams } from "next/navigation";
 import { DatePickerFilter } from "./date-picker-filter";
-import { Search, Clock, Loader2, AlertCircle } from "lucide-react";
+import { Search, Clock, Loader2, AlertCircle, QrCode } from "lucide-react";
 import { useQuery } from "@tanstack/react-query";
 import { apiClient } from "@/lib/api-client";
 import { Appointment } from "@/types/api";
+import { CheckInDialog } from "./check-in-dialog";
+import { Button } from "@/components/ui/button";
 import { format, isBefore, isAfter, startOfDay } from "date-fns";
 
 type Tab = "today" | "past" | "upcoming";
@@ -30,6 +32,7 @@ export function AppointmentTabs() {
   const activeTab = (searchParams.get("view") || "upcoming") as Tab;
   const [filterDate, setFilterDate] = useState<Date | undefined>(undefined);
   const [searchQuery, setSearchQuery] = useState("");
+  const [showCheckIn, setShowCheckIn] = useState(false);
 
   const queryDate =
     activeTab === "today"
@@ -145,16 +148,34 @@ export function AppointmentTabs() {
             </div>
 
             {/* Date Picker for Past and Upcoming */}
-            {activeTab !== "today" && (
+            {activeTab !== "today" ? (
               <div className="flex items-center gap-3 bg-white border border-neutral-200 rounded-lg pl-3">
                 <span className="text-xs font-bold text-neutral-400 uppercase tracking-widest shrink-0">
                   Date
                 </span>
                 <DatePickerFilter date={filterDate} setDate={setFilterDate} />
               </div>
+            ) : (
+              <Button 
+                onClick={() => setShowCheckIn(true)}
+                className="bg-blue-600 hover:bg-blue-700 text-white shadow-sm font-bold h-10 px-6 gap-2"
+              >
+                <QrCode className="w-4 h-4" />
+                Check-in Patient
+              </Button>
             )}
           </div>
         </div>
+
+        {/* Check-in Dialog */}
+        <CheckInDialog 
+          open={showCheckIn} 
+          onOpenChange={setShowCheckIn}
+          onSuccess={() => {
+            // Refresh appointments list on successful check-in
+            window.location.reload(); // Simple refresh for now to update the table
+          }}
+        />
 
         {/* Table Body */}
         <div className="flex-1 overflow-x-auto">

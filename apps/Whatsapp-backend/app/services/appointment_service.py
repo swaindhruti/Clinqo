@@ -17,6 +17,20 @@ class AppointmentService:
         self.appointment_repo = appointment_repo
         self.doctor_repo = doctor_repo
     
+    async def _generate_check_in_code(self) -> str:
+        """Generate a random 6-character alphanumeric check-in code"""
+        import random
+        import string
+        chars = string.ascii_uppercase + string.digits
+        # Try to find a unique code
+        for _ in range(5):
+            code = ''.join(random.choices(chars, k=6))
+            existing = await self.appointment_repo.get_by_check_in_code(code)
+            if not existing:
+                return code
+        # Fallback to a longer code if collisions occur
+        return ''.join(random.choices(chars, k=8))
+
     async def book_appointment(
         self,
         patient_id: UUID,
@@ -56,13 +70,17 @@ class AppointmentService:
             settings.MAX_APPOINTMENTS_PER_DOCTOR_PER_DAY
         )
         
+        # Generate check-in code
+        check_in_code = await self._generate_check_in_code()
+        
         try:
             appointment = await self.appointment_repo.atomic_book_slot(
                 doctor_id=doctor_id,
                 appointment_date=appointment_date,
                 patient_id=patient_id,
                 time_slot=time_slot,
-                idempotency_key=idempotency_key
+                idempotency_key=idempotency_key,
+                check_in_code=check_in_code
             )
             
             logger.info(
@@ -71,7 +89,8 @@ class AppointmentService:
                 doctor_id=str(doctor_id),
                 patient_id=str(patient_id),
                 date=str(appointment_date),
-                slot=appointment.slot
+                slot=appointment.slot,
+                check_in_code=check_in_code
             )
             
             return appointment
@@ -98,7 +117,7 @@ class AppointmentService:
         return await self.appointment_repo.list_by_doctor_date(doctor_id, appointment_date)
 
     async def list_all_appointments(
-        self, appointment_date: Optional[date] = None
+        self, appointment_date: Optional[date] = None, patient_id: Optional[UUID] = None
     ) -> List[Appointment]:
-        """List all appointments across all doctors, optionally filtered by date"""
-        return await self.appointment_repo.list_all(appointment_date)
+        """List all appointments across all doctors, optionally filtered by date or patient"""
+        return await self.appointment_repo.list_all(appointment_date, patient_id)

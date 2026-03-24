@@ -11,6 +11,7 @@ class PatientCreate(BaseModel):
     gender: Optional[str] = Field(None, max_length=20)
     phone: str = Field(..., min_length=10, max_length=20)
     email: Optional[EmailStr] = None
+    blood_group: Optional[str] = Field(None, max_length=10)
     
     @field_validator('phone')
     @classmethod
@@ -28,6 +29,7 @@ class PatientResponse(BaseModel):
     gender: Optional[str]
     phone: str
     email: Optional[str]
+    blood_group: Optional[str]
     created_at: datetime
     
     class Config:
@@ -86,8 +88,11 @@ class AppointmentResponse(BaseModel):
     slot: int
     time_slot: Optional[int] = None
     status: str
+    patient: Optional[PatientResponse] = None
+    doctor: Optional[DoctorResponse] = None
     patient_name: Optional[str] = None
     doctor_name: Optional[str] = None
+    check_in_code: Optional[str] = None
     created_at: datetime
     updated_at: datetime
     
@@ -96,8 +101,9 @@ class AppointmentResponse(BaseModel):
 
 
 class CheckInRequest(BaseModel):
-    appointment_id: UUID
-    patient_id: UUID
+    appointment_id: Optional[UUID] = None
+    patient_id: Optional[UUID] = None
+    check_in_code: Optional[str] = None
 
 
 class CheckInResponse(BaseModel):

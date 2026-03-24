@@ -110,9 +110,10 @@ async def get_appointment(
 async def list_all_appointments(
     service: AppointmentService = Depends(get_appointment_service),
     date: Optional[date] = Query(None, description="Date in YYYY-MM-DD format"),
+    patient_id: Optional[UUID] = Query(None, description="Filter by patient ID"),
 ):
-    """List all appointments across all doctors, optionally filtered by date"""
-    appointments = await service.list_all_appointments(date)
+    """List all appointments across all doctors, optionally filtered by date or patient"""
+    appointments = await service.list_all_appointments(date, patient_id)
     
     result = []
     for app in appointments:
@@ -126,6 +127,8 @@ async def list_all_appointments(
             "status": app.status,
             "created_at": app.created_at,
             "updated_at": app.updated_at,
+            "patient": app.patient,
+            "doctor": app.doctor,
             "patient_name": app.patient.name if app.patient else None,
             "doctor_name": app.doctor.name if getattr(app, 'doctor', None) else None
         }
@@ -158,6 +161,8 @@ async def list_doctor_appointments(
             "status": app.status,
             "created_at": app.created_at,
             "updated_at": app.updated_at,
+            "patient": app.patient,
+            "doctor": app.doctor,
             "patient_name": app.patient.name if app.patient else None,
             "doctor_name": app.doctor.name if getattr(app, 'doctor', None) else None
         }

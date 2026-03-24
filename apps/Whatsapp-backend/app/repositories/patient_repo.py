@@ -1,7 +1,7 @@
 from typing import Optional
 from uuid import UUID
 from sqlalchemy.ext.asyncio import AsyncSession
-from sqlalchemy import select
+from sqlalchemy import select, and_
 from app.models import Patient
 
 
@@ -25,5 +25,16 @@ class PatientRepository:
     async def get_by_phone(self, phone: str) -> Optional[Patient]:
         result = await self.db.execute(
             select(Patient).where(Patient.phone == phone)
+        )
+        return result.scalar_one_or_none()
+    
+    async def get_by_phone_and_name(self, phone: str, name: str) -> Optional[Patient]:
+        result = await self.db.execute(
+            select(Patient).where(
+                and_(
+                    Patient.phone == phone,
+                    Patient.name == name
+                )
+            )
         )
         return result.scalar_one_or_none()

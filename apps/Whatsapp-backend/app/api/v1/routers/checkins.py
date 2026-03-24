@@ -37,7 +37,8 @@ async def check_in(
     try:
         queue_entry = await service.check_in(
             appointment_id=checkin_data.appointment_id,
-            patient_id=checkin_data.patient_id
+            patient_id=checkin_data.patient_id,
+            check_in_code=checkin_data.check_in_code
         )
         
         # Send real-time notification
@@ -45,7 +46,7 @@ async def check_in(
         from app.repositories.appointment_repo import AppointmentRepository
         
         appt_repo = AppointmentRepository(db)
-        appointment = await appt_repo.get_by_id(checkin_data.appointment_id)
+        appointment = await appt_repo.get_by_id(queue_entry.appointment_id)
         if appointment:
             await notify_queue_update(appointment.doctor_id, appointment.date, db)
         

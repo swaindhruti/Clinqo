@@ -12,14 +12,18 @@ class PatientService:
         self.repo = repo
     
     async def create_patient(self, patient_data: dict) -> Patient:
-        """Create a new patient"""
-        logger.info("Creating patient", phone=patient_data.get("phone", "unknown"))
+        """Create a new patient or reuse existing one if phone and name match"""
+        name = patient_data.get("name")
+        phone = patient_data.get("phone")
+        logger.info("Creating patient", phone=phone, name=name)
         
-        existing = await self.repo.get_by_phone(patient_data["phone"])
+        # Check if patient exists with same phone AND name
+        existing = await self.repo.get_by_phone_and_name(phone, name)
         if existing:
-            logger.info("Patient already exists with phone", patient_id=str(existing.id))
+            logger.info("Patient already exists with phone and name", patient_id=str(existing.id))
             return existing
         
+        # If not, create new patient record
         patient = await self.repo.create(patient_data)
         logger.info("Patient created", patient_id=str(patient.id))
         return patient

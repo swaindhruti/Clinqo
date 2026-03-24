@@ -1,7 +1,7 @@
 "use client";
 
 import { useRouter } from "next/navigation";
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import {
   ArrowLeft,
   Clock,
@@ -14,6 +14,7 @@ import {
   Plus,
   AlertTriangle,
   CalendarIcon,
+  Loader2,
 } from "lucide-react";
 import { format } from "date-fns";
 
@@ -32,57 +33,11 @@ import {
   PopoverTrigger,
 } from "@/components/ui/popover";
 import { Calendar } from "@/components/ui/calendar";
+import { Button } from "@/components/ui/button";
 
-// Mock data
-const APPOINTMENT_DATA = {
-  id: "1",
-  patient: {
-    name: "Alice Cooper",
-    age: 34,
-    gender: "Female",
-    bloodGroup: "O+",
-    contact: "+1 (555) 987-6543",
-  },
-  datetime: "09:30 AM, Nov 01, 2023",
-  category: "Follow-up",
-  status: "In Progress",
-  pastAppointments: [
-    {
-      id: "101",
-      date: "Oct 15, 2023",
-      reason: "Fever and chills",
-      status: "Completed",
-      diagnosis: "Viral Fever",
-      symptoms: "High temperature, body ache, shivering",
-      medicines: [
-        {
-          name: "Paracetamol 500mg",
-          dosage: "1-1-1 after food",
-          days: "5 Days",
-        },
-        { name: "Cough Syrup", dosage: "10ml before sleep", days: "5 Days" },
-      ],
-      precautions: "Drink plenty of warm water. Avoid cold beverages.",
-    },
-    {
-      id: "102",
-      date: "Sep 02, 2023",
-      reason: "Annual Checkup",
-      status: "Completed",
-      diagnosis: "Healthy condition",
-      symptoms: "Routine checkup",
-      medicines: [
-        {
-          name: "Multivitamin Tablets",
-          dosage: "1-0-0 after breakfast",
-          days: "30 Days",
-        },
-      ],
-      precautions:
-        "Maintain a balanced diet and engage in light daily exercise.",
-    },
-  ],
-};
+// API client and types
+import { apiClient } from "@/lib/api-client";
+import { Appointment, APIErrorResponse } from "@/types/api";
 
 export function AppointmentDetailsSection({
   appointmentId,
@@ -90,6 +45,10 @@ export function AppointmentDetailsSection({
   appointmentId: string;
 }) {
   const router = useRouter();
+  const [appointment, setAppointment] = useState<Appointment | null>(null);
+  const [isLoading, setIsLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
+  const [history, setHistory] = useState<Appointment[]>([]);
 
   // State for dynamic medicine list
   const [medicines, setMedicines] = useState(() => [
@@ -98,6 +57,29 @@ export function AppointmentDetailsSection({
 
   // State for date picker
   const [followUpDate, setFollowUpDate] = useState<Date | undefined>();
+
+  useEffect(() => {
+    const fetchData = async () => {
+      try {
+        setIsLoading(true);
+        const data = await apiClient.get<Appointment>(`/appointments/${appointmentId}`);
+        setAppointment(data);
+        
+        // Fetch patient history
+        if (data.patient_id) {
+          const historyData = await apiClient.get<Appointment[]>(`/appointments?patient_id=${data.patient_id}`);
+          // Filter out current appointment from history
+          setHistory(historyData.filter(app => app.id !== appointmentId));
+        }
+      } catch (err) {
+        const apiErr = err as APIErrorResponse;
+        setError(apiErr.message || "Failed to load appointment details.");
+      } finally {
+        setIsLoading(false);
+      }
+    };
+    fetchData();
+  }, [appointmentId]);
 
   const addMedicine = () => {
     setMedicines([
@@ -119,6 +101,27 @@ export function AppointmentDetailsSection({
       ),
     );
   };
+
+  if (isLoading) {
+    return (
+      <div className="flex items-center justify-center h-full min-h-[400px]">
+        <Loader2 className="w-8 h-8 animate-spin text-blue-600" />
+      </div>
+    );
+  }
+
+  if (error || !appointment) {
+    return (
+      <div className="flex flex-col items-center justify-center h-full min-h-[400px] gap-4">
+        <AlertTriangle className="w-12 h-12 text-red-500" />
+        <p className="text-neutral-600 font-medium">{error || "Appointment not found"}</p>
+        <Button onClick={() => router.push("/doctor?tab=appointments")}>Go Back</Button>
+      </div>
+    );
+  }
+
+  const patient = appointment.patient;
+  const formattedDateTime = appointment.date + (appointment.time_slot ? `, ${appointment.time_slot}:00` : "");
 
   return (
     <div className="flex flex-col gap-4 animate-in fade-in duration-300 w-full h-full min-h-[calc(100vh-100px)]">
@@ -148,14 +151,14 @@ export function AppointmentDetailsSection({
           <div className="bg-white border border-neutral-200 shadow-sm rounded-xl overflow-hidden flex flex-col">
             <div className="p-4 bg-neutral-50/50 border-b border-neutral-100 flex flex-col items-center text-center">
               <h2 className="text-xl font-bold tracking-tight text-neutral-900">
-                {APPOINTMENT_DATA.patient.name}
+                {patient?.name || "Unknown Patient"}
               </h2>
               <div className="flex items-center gap-2 mt-2">
                 <span className="bg-blue-50 text-blue-700 border border-blue-200 px-2.5 py-0.5 rounded-full text-[10px] font-bold uppercase tracking-wider">
-                  {APPOINTMENT_DATA.category}
+                  {"General"}
                 </span>
                 <span className="text-xs font-semibold text-neutral-500">
-                  ID: #{appointmentId}
+                  ID: #{appointmentId.slice(0, 8)}
                 </span>
               </div>
             </div>
@@ -167,22 +170,29 @@ export function AppointmentDetailsSection({
                     Age / Gender
                   </span>
                   <span className="text-neutral-900 font-bold">
-                    {APPOINTMENT_DATA.patient.age}Y,{" "}
-                    {APPOINTMENT_DATA.patient.gender}
+                    {patient?.age ? `${patient.age}Y` : "N/A"}, {patient?.gender || "N/A"}
                   </span>
+                </li>
+                <li className="flex justify-between items-center text-xs">
+                  <div className="flex items-center gap-2 text-neutral-400">
+                    <Clock className="w-3.5 h-3.5" />
+                    <span className="text-xs font-bold text-neutral-600">
+                      {formattedDateTime}
+                    </span>
+                  </div>
                 </li>
                 <li className="flex justify-between items-center text-xs">
                   <span className="text-neutral-500 font-medium">
                     Blood Group
                   </span>
                   <span className="text-neutral-900 font-bold">
-                    {APPOINTMENT_DATA.patient.bloodGroup}
+                    {patient?.blood_group || "N/A"}
                   </span>
                 </li>
                 <li className="flex justify-between items-center text-xs">
                   <span className="text-neutral-500 font-medium">Contact</span>
                   <span className="text-neutral-900 font-bold">
-                    {APPOINTMENT_DATA.patient.contact}
+                    {patient?.phone || "N/A"}
                   </span>
                 </li>
               </ul>
@@ -197,91 +207,44 @@ export function AppointmentDetailsSection({
             </div>
 
             <div className="p-3 flex flex-col gap-2 flex-1 overflow-y-auto max-h-[400px]">
-              {APPOINTMENT_DATA.pastAppointments.map((past) => (
-                <Dialog key={past.id}>
-                  <DialogTrigger asChild>
-                    <div className="p-3 rounded-lg border border-neutral-100 bg-neutral-50/30 hover:bg-neutral-50 hover:border-neutral-200 transition-all cursor-pointer group flex items-start justify-between">
-                      <div>
-                        <p className="text-[13px] font-bold text-neutral-900 group-hover:text-blue-600 transition-colors">
-                          {past.date}
-                        </p>
-                        <p className="text-[11px] text-neutral-500 mt-1 font-medium leading-tight line-clamp-2">
-                          {past.reason}
-                        </p>
+              {history.length === 0 ? (
+                <div className="flex flex-col items-center justify-center p-8 text-center bg-neutral-50/30 rounded-lg border border-dashed border-neutral-100 italic text-neutral-400 text-xs">
+                  No past appointments
+                </div>
+              ) : (
+                history.map((past) => (
+                  <Dialog key={past.id}>
+                    <DialogTrigger asChild>
+                      <div className="p-3 rounded-lg border border-neutral-100 bg-neutral-50/30 hover:bg-neutral-50 hover:border-neutral-200 transition-all cursor-pointer group flex items-start justify-between">
+                        <div>
+                          <p className="text-[13px] font-bold text-neutral-900 group-hover:text-blue-600 transition-colors">
+                            {past.date}
+                          </p>
+                          <p className="text-[11px] text-neutral-500 mt-1 font-medium leading-tight">
+                            Status: {past.status}
+                          </p>
+                        </div>
+                        <ChevronRight className="w-4 h-4 text-neutral-400 group-hover:text-blue-500 transition-colors shrink-0 mt-0.5" />
                       </div>
-                      <ChevronRight className="w-4 h-4 text-neutral-400 group-hover:text-blue-500 transition-colors shrink-0 mt-0.5" />
-                    </div>
-                  </DialogTrigger>
-                  <DialogContent className="max-w-2xl max-h-[85vh] overflow-y-auto">
-                    <DialogHeader>
-                      <DialogTitle className="text-xl font-bold flex items-center gap-2">
-                        <Clock className="w-5 h-5 text-blue-600" /> Appointment
-                        Details
-                      </DialogTitle>
-                      <DialogDescription className="text-sm font-medium">
-                        Patient: {APPOINTMENT_DATA.patient.name} • Date:{" "}
-                        {past.date}
-                      </DialogDescription>
-                    </DialogHeader>
+                    </DialogTrigger>
+                    <DialogContent className="max-w-2xl max-h-[85vh] overflow-y-auto">
+                      <DialogHeader>
+                        <DialogTitle className="text-xl font-bold flex items-center gap-2">
+                          <Clock className="w-5 h-5 text-blue-600" /> Appointment
+                          Details
+                        </DialogTitle>
+                        <DialogDescription className="text-sm font-medium">
+                          Patient: {patient?.name} • Date: {past.date}
+                        </DialogDescription>
+                      </DialogHeader>
 
-                    <div className="mt-4 flex flex-col gap-6">
-                      <div className="bg-neutral-50 p-4 rounded-xl border border-neutral-100">
-                        <h4 className="text-xs font-bold uppercase tracking-wider text-neutral-500 mb-2 flex items-center gap-2">
-                          <Activity className="w-4 h-4" /> Symptoms
-                        </h4>
-                        <p className="text-sm text-neutral-800 font-medium">
-                          {past.symptoms}
-                        </p>
+                      <div className="mt-4 p-8 text-center bg-neutral-50 rounded-xl border border-dashed border-neutral-200 italic text-neutral-400 text-sm">
+                        Detailed prescription history not available.
                       </div>
-
-                      <div className="bg-neutral-50 p-4 rounded-xl border border-neutral-100">
-                        <h4 className="text-xs font-bold uppercase tracking-wider text-neutral-500 mb-2 flex items-center gap-2">
-                          <FileText className="w-4 h-4" /> Diagnosis
-                        </h4>
-                        <p className="text-sm text-neutral-800 font-medium">
-                          {past.diagnosis}
-                        </p>
-                      </div>
-
-                      <div className="bg-neutral-50 p-4 rounded-xl border border-neutral-100">
-                        <h4 className="text-xs font-bold uppercase tracking-wider text-neutral-500 mb-3 flex items-center gap-2">
-                          <Pill className="w-4 h-4" /> Prescribed Medicines
-                        </h4>
-                        <ul className="space-y-3">
-                          {past.medicines.map((m, i) => (
-                            <li
-                              key={i}
-                              className="flex flex-col sm:flex-row sm:items-center justify-between gap-1 p-2 bg-white rounded-lg border border-neutral-100"
-                            >
-                              <span className="text-sm font-bold text-neutral-900">
-                                {m.name}
-                              </span>
-                              <div className="flex gap-3 text-xs font-medium text-neutral-500">
-                                <span className="bg-neutral-100 px-2 py-1 rounded-full">
-                                  {m.dosage}
-                                </span>
-                                <span className="bg-neutral-100 px-2 py-1 rounded-full">
-                                  {m.days}
-                                </span>
-                              </div>
-                            </li>
-                          ))}
-                        </ul>
-                      </div>
-
-                      <div className="bg-blue-50/50 p-4 rounded-xl border border-blue-100">
-                        <h4 className="text-xs font-bold uppercase tracking-wider text-blue-600 mb-2 flex items-center gap-2">
-                          <AlertTriangle className="w-4 h-4" /> Precautions &
-                          Advice
-                        </h4>
-                        <p className="text-sm text-neutral-800 font-medium">
-                          {past.precautions}
-                        </p>
-                      </div>
-                    </div>
-                  </DialogContent>
-                </Dialog>
-              ))}
+                    </DialogContent>
+                  </Dialog>
+                ))
+              )}
             </div>
           </div>
         </div>

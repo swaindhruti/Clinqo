@@ -1,6 +1,6 @@
-from typing import List
+from typing import List, Optional
 from uuid import UUID
-from datetime import date, datetime
+from datetime import date, datetime, timedelta, timezone
 from sqlalchemy.exc import IntegrityError
 from app.repositories.queue_repo import QueueRepository
 from app.repositories.appointment_repo import AppointmentRepository
@@ -15,22 +15,33 @@ class QueueService:
         self.queue_repo = queue_repo
         self.appointment_repo = appointment_repo
     
-    async def check_in(self, appointment_id: UUID, patient_id: UUID) -> QueueEntry:
+    async def check_in(self, appointment_id: Optional[UUID] = None, patient_id: Optional[UUID] = None, check_in_code: Optional[str] = None) -> QueueEntry:
         """
         Check in a patient for their appointment.
+        Supports check-in by appointment_id + patient_id OR by check_in_code.
         Only allowed on appointment date. Atomically assigns queue position.
         """
-        appointment = await self.appointment_repo.get_by_id(appointment_id)
-        if not appointment:
-            raise ValueError(f"Appointment {appointment_id} not found")
+        if check_in_code:
+            appointment = await self.appointment_repo.get_by_check_in_code(check_in_code)
+            if not appointment:
+                raise ValueError(f"Invalid check-in code: {check_in_code}")
+        elif appointment_id:
+            appointment = await self.appointment_repo.get_by_id(appointment_id)
+            if not appointment:
+                raise ValueError(f"Appointment {appointment_id} not found")
+            if patient_id and appointment.patient_id != patient_id:
+                raise ValueError("Appointment does not belong to this patient")
+        else:
+            raise ValueError("Either check_in_code or appointment_id must be provided")
         
-        if appointment.patient_id != patient_id:
-            raise ValueError("Appointment does not belong to this patient")
+        appointment_id = appointment.id
         
         if appointment.status != AppointmentStatus.BOOKED:
             raise ValueError(f"Appointment is already {appointment.status.value}")
         
-        today = date.today()
+        # Use IST (UTC+5:30) for clinic's local "today"
+        ist = timezone(timedelta(hours=5, minutes=30))
+        today = datetime.now(ist).date()
         if appointment.date != today:
             raise ValueError(f"Check-in only allowed on appointment date. Appointment is for {appointment.date}")
         
