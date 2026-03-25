@@ -111,9 +111,10 @@ async def list_all_appointments(
     service: AppointmentService = Depends(get_appointment_service),
     date: Optional[date] = Query(None, description="Date in YYYY-MM-DD format"),
     patient_id: Optional[UUID] = Query(None, description="Filter by patient ID"),
+    clinic_id: Optional[UUID] = Query(None, description="Filter by clinic ID"),
 ):
-    """List all appointments across all doctors, optionally filtered by date or patient"""
-    appointments = await service.list_all_appointments(date, patient_id)
+    """List all appointments across all doctors, optionally filtered by date, patient, or clinic"""
+    appointments = await service.list_all_appointments(date, patient_id, clinic_id)
     
     result = []
     for app in appointments:
@@ -169,3 +170,35 @@ async def list_doctor_appointments(
         result.append(app_dict)
         
     return result
+
+
+@router.patch(
+    "/{appointment_id}/status",
+    response_model=AppointmentResponse,
+)
+async def update_appointment_status(
+    appointment_id: UUID,
+    status: AppointmentStatus,
+    service: AppointmentService = Depends(get_appointment_service),
+    db: AsyncSession = Depends(get_db)
+):
+    """Update appointment status (e.g., complete, cancel, check_in)"""
+    try:
+        appointment = await service.update_appointment_status(appointment_id, status)
+        
+        # Send real-time notification
+        from app.api.v1.routers.websockets import notify_queue_update
+        await notify_queue_update(appointment.doctor_id, appointment.date, db)
+        
+        return appointment
+    except ValueError as e:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail={"error": "NotFound", "message": str(e)}
+        )
+    except Exception as e:
+        logger.error("Status update failed", error=str(e))
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail={"error": "InternalError", "message": "Status update failed"}
+        )

@@ -3,7 +3,7 @@ from fastapi.responses import JSONResponse
 from fastapi.exceptions import RequestValidationError
 from fastapi.middleware.cors import CORSMiddleware
 from contextlib import asynccontextmanager
-from app.api.v1.routers import patients, doctors, appointments, checkins, websockets
+from app.api.v1.routers import patients, doctors, appointments, checkins, websockets, auth, clinics
 from app.core.config import get_settings
 from app.core.logging import get_logger
 
@@ -54,6 +54,8 @@ async def health_check():
     return {"status": "healthy", "environment": settings.ENVIRONMENT}
 
 
+app.include_router(auth.router, prefix="/api/v1")
+app.include_router(clinics.router, prefix="/api/v1")
 app.include_router(patients.router, prefix="/api/v1")
 app.include_router(doctors.router, prefix="/api/v1")
 app.include_router(appointments.router, prefix="/api/v1")

@@ -43,17 +43,24 @@ class AppointmentRepository:
         result = await self.db.execute(query.order_by(Appointment.slot))
         return list(result.scalars().all())
 
-    async def list_all(self, appointment_date: Optional[date] = None, patient_id: Optional[UUID] = None) -> List[Appointment]:
+    async def list_all(
+        self, 
+        appointment_date: Optional[date] = None, 
+        patient_id: Optional[UUID] = None,
+        clinic_id: Optional[UUID] = None
+    ) -> List[Appointment]:
         query = select(Appointment).options(
             joinedload(Appointment.patient),
             joinedload(Appointment.doctor)
-        ).where(
+        ).join(Appointment.doctor).where(
             Appointment.status != AppointmentStatus.CANCELLED
         )
         if appointment_date:
             query = query.where(Appointment.date == appointment_date)
         if patient_id:
             query = query.where(Appointment.patient_id == patient_id)
+        if clinic_id:
+            query = query.where(Appointment.doctor.has(clinic_id=clinic_id))
             
         result = await self.db.execute(query.order_by(Appointment.date.desc(), Appointment.slot))
         return list(result.scalars().all())

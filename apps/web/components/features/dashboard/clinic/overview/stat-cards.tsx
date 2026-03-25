@@ -1,28 +1,54 @@
-import { Users, CalendarHeart, Stethoscope } from "lucide-react";
+"use client";
 
-// Mock data fetching function to simulate Server Component data fetching
-async function getClinicStats() {
-  return [
+import { Users, CalendarHeart, Stethoscope, Loader2 } from "lucide-react";
+import { useAuth } from "@/hooks/use-auth";
+import { useQuery } from "@tanstack/react-query";
+import { apiClient } from "@/lib/api-client";
+
+type ClinicStats = {
+  total_patients: number;
+  appointments_today: number;
+  doctors_available: number;
+};
+
+export function StatCards() {
+  const { clinic } = useAuth();
+
+  const { data: statsData, isLoading } = useQuery({
+    queryKey: ["clinic-stats", clinic?.id],
+    queryFn: () => apiClient.get<ClinicStats>(`/clinics/${clinic?.id}/stats`),
+    enabled: !!clinic?.id,
+  });
+
+  const stats = [
     {
       title: "Total Patients",
-      value: "1,248",
+      value: statsData?.total_patients?.toLocaleString() || "0",
       icon: Users,
     },
     {
       title: "Appointments Today",
-      value: "42",
+      value: statsData?.appointments_today?.toString() || "0",
       icon: CalendarHeart,
     },
     {
-      title: "Doctors Available",
-      value: "8",
+      title: "Total Doctors",
+      value: statsData?.doctors_available?.toString() || "0",
       icon: Stethoscope,
     },
   ];
-}
 
-export async function StatCards() {
-  const stats = await getClinicStats();
+  if (isLoading) {
+    return (
+      <div className="grid auto-rows-min gap-4 md:grid-cols-3 w-full">
+        {[1, 2, 3].map((i) => (
+          <div key={i} className="bg-white border border-neutral-200 shadow-sm aspect-video rounded-xl p-6 flex items-center justify-center">
+            <Loader2 className="w-6 h-6 text-neutral-300 animate-spin" />
+          </div>
+        ))}
+      </div>
+    );
+  }
 
   return (
     <div className="grid auto-rows-min gap-4 md:grid-cols-3 w-full">

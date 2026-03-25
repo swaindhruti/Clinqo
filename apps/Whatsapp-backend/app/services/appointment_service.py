@@ -117,7 +117,14 @@ class AppointmentService:
         return await self.appointment_repo.list_by_doctor_date(doctor_id, appointment_date)
 
     async def list_all_appointments(
-        self, appointment_date: Optional[date] = None, patient_id: Optional[UUID] = None
+        self, 
+        appointment_date: Optional[date] = None, 
+        patient_id: Optional[UUID] = None,
+        clinic_id: Optional[UUID] = None
     ) -> List[Appointment]:
-        """List all appointments across all doctors, optionally filtered by date or patient"""
-        return await self.appointment_repo.list_all(appointment_date, patient_id)
+        """List all appointments across all doctors, optionally filtered by date, patient, or clinic"""
+        return await self.appointment_repo.list_all(appointment_date, patient_id, clinic_id)
+
+    async def update_appointment_status(self, appointment_id: UUID, status: AppointmentStatus) -> Appointment:
+        """Update appointment status"""
+        return await self.appointment_repo.update_status(appointment_id, status)

@@ -81,17 +81,10 @@ const navigationConfig: NavigationConfig = {
     },
   ],
   doctor: [
-    { title: "Overview", url: "/doctor?tab=overview", icon: BarChart3 },
     {
-      title: "Appointments",
+      title: "Today's Appointments",
       url: "/doctor?tab=appointments",
       icon: CalendarDays,
-      isActive: true,
-      items: [
-        { title: "Today's", url: "/doctor?tab=appointments&view=today" },
-        { title: "Upcoming", url: "/doctor?tab=appointments&view=upcoming" },
-        { title: "Past", url: "/doctor?tab=appointments&view=past" },
-      ],
     },
     { title: "My Schedule", url: "/doctor?tab=schedule", icon: CalendarDays },
     { title: "Profile", url: "/doctor?tab=profile", icon: User },

@@ -7,6 +7,7 @@ import { Search, Clock, Loader2, AlertCircle, QrCode } from "lucide-react";
 import { useQuery } from "@tanstack/react-query";
 import { apiClient } from "@/lib/api-client";
 import { Appointment } from "@/types/api";
+import { useAuth } from "@/hooks/use-auth";
 import { CheckInDialog } from "./check-in-dialog";
 import { Button } from "@/components/ui/button";
 import { format, isBefore, isAfter, startOfDay } from "date-fns";
@@ -45,18 +46,21 @@ export function AppointmentTabs() {
           ? format(filterDate, "yyyy-MM-dd")
           : format(new Date(), "yyyy-MM-dd");
 
+  const { clinic } = useAuth();
+
   const {
     data: rawAppointments,
     isLoading,
     error,
   } = useQuery({
-    queryKey: ["clinic-appointments", "all-doctors", queryDate, activeTab],
+    queryKey: ["clinic-appointments", clinic?.id, queryDate, activeTab],
     queryFn: () => {
-      const url = queryDate
-        ? `/appointments?date=${queryDate}`
-        : `/appointments`;
+      let url = `/appointments?`;
+      if (queryDate) url += `date=${queryDate}&`;
+      if (clinic?.id) url += `clinic_id=${clinic.id}`;
       return apiClient.get<Appointment[]>(url);
     },
+    enabled: !!clinic?.id,
   });
 
   const allAppointments = useMemo(() => {

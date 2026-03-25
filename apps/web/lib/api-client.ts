@@ -26,7 +26,30 @@ async function handleResponse<T>(response: Response): Promise<T> {
   return data as T;
 }
 
+const getAuthHeader = (): Record<string, string> => {
+  if (typeof window !== "undefined") {
+    const token = localStorage.getItem("clinqo_auth_token");
+    if (token) {
+      return { Authorization: `Bearer ${token}` };
+    }
+  }
+  return {};
+};
+
 export const apiClient = {
+  setToken: (token: string) => {
+    if (typeof window !== "undefined") {
+      localStorage.setItem("clinqo_auth_token", token);
+    }
+  },
+
+  logout: () => {
+    if (typeof window !== "undefined") {
+      localStorage.removeItem("clinqo_auth_token");
+      window.location.href = "/sign-in";
+    }
+  },
+
   get: async <T>(endpoint: string, params?: Record<string, string>): Promise<T> => {
     const url = new URL(`${API_BASE_URL}${endpoint}`);
     if (params) {
@@ -39,6 +62,7 @@ export const apiClient = {
       method: 'GET',
       headers: {
         'Content-Type': 'application/json',
+        ...getAuthHeader(),
       },
     });
 
@@ -50,6 +74,7 @@ export const apiClient = {
       method: 'POST',
       headers: {
         'Content-Type': 'application/json',
+        ...getAuthHeader(),
       },
       body: JSON.stringify(body),
     });
@@ -62,8 +87,22 @@ export const apiClient = {
       method: 'PUT',
       headers: {
         'Content-Type': 'application/json',
+        ...getAuthHeader(),
       },
       body: JSON.stringify(body),
+    });
+
+    return handleResponse<T>(response);
+  },
+
+  patch: async <T>(endpoint: string, body?: unknown): Promise<T> => {
+    const response = await fetch(`${API_BASE_URL}${endpoint}`, {
+      method: 'PATCH',
+      headers: {
+        'Content-Type': 'application/json',
+        ...getAuthHeader(),
+      },
+      body: body ? JSON.stringify(body) : undefined,
     });
 
     return handleResponse<T>(response);
@@ -74,6 +113,7 @@ export const apiClient = {
       method: 'DELETE',
       headers: {
         'Content-Type': 'application/json',
+        ...getAuthHeader(),
       },
     });
 

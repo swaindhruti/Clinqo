@@ -22,16 +22,63 @@ class PatientCreate(BaseModel):
         return cleaned
 
 
-class PatientResponse(BaseModel):
+class Patient(BaseModel):
     id: UUID
     name: str
-    age: Optional[int]
-    gender: Optional[str]
+    age: Optional[int] = None
+    gender: Optional[str] = None
     phone: str
-    email: Optional[str]
-    blood_group: Optional[str]
+    email: Optional[str] = None
+    blood_group: Optional[str] = None
     created_at: datetime
-    
+
+    class Config:
+        from_attributes = True
+
+
+class UserBase(BaseModel):
+    email: str
+    role: str
+    is_active: bool = True
+
+
+class UserCreate(UserBase):
+    password: str
+
+
+class UserResponse(UserBase):
+    id: UUID
+    created_at: datetime
+
+    class Config:
+        from_attributes = True
+
+
+class Token(BaseModel):
+    access_token: str
+    token_type: str
+
+
+class TokenData(BaseModel):
+    email: Optional[str] = None
+    role: Optional[str] = None
+
+
+class ClinicBase(BaseModel):
+    name: str
+    address: Optional[str] = None
+
+
+class ClinicCreate(ClinicBase):
+    user_email: str
+    password: str
+
+
+class ClinicResponse(ClinicBase):
+    id: UUID
+    user_id: UUID
+    created_at: datetime
+
     class Config:
         from_attributes = True
 

@@ -18,6 +18,13 @@ class AppointmentStatus(str, enum.Enum):
     COMPLETED = "completed"
 
 
+class UserRole(str, enum.Enum):
+    ADMIN = "admin"
+    CLINIC = "clinic"
+    DOCTOR = "doctor"
+    PATIENT = "patient"
+
+
 class QueueStatus(str, enum.Enum):
     WAITING = "waiting"
     SERVED = "served"
@@ -39,6 +46,34 @@ class Patient(Base):
     appointments: Mapped[list["Appointment"]] = relationship("Appointment", back_populates="patient")
 
 
+class User(Base):
+    __tablename__ = "users"
+    
+    id: Mapped[uuid.UUID] = mapped_column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
+    email: Mapped[str] = mapped_column(String(255), nullable=False, unique=True, index=True)
+    hashed_password: Mapped[str] = mapped_column(String(255), nullable=False)
+    role: Mapped[UserRole] = mapped_column(SQLEnum(UserRole), nullable=False, default=UserRole.DOCTOR)
+    is_active: Mapped[bool] = mapped_column(Boolean, default=True)
+    created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=datetime.utcnow)
+    
+    # Relationships
+    clinic: Mapped[Optional["Clinic"]] = relationship("Clinic", back_populates="user", uselist=False)
+    doctor: Mapped[Optional["DoctorMaster"]] = relationship("DoctorMaster", back_populates="user", uselist=False)
+
+
+class Clinic(Base):
+    __tablename__ = "clinics"
+    
+    id: Mapped[uuid.UUID] = mapped_column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
+    name: Mapped[str] = mapped_column(String(200), nullable=False)
+    address: Mapped[Optional[str]] = mapped_column(Text, nullable=True)
+    user_id: Mapped[uuid.UUID] = mapped_column(UUID(as_uuid=True), ForeignKey("users.id"), nullable=False, unique=True)
+    created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=datetime.utcnow)
+    
+    user: Mapped["User"] = relationship("User", back_populates="clinic")
+    doctors: Mapped[list["DoctorMaster"]] = relationship("DoctorMaster", back_populates="clinic")
+
+
 class DoctorMaster(Base):
     __tablename__ = "doctor_masters"
     
@@ -46,8 +81,12 @@ class DoctorMaster(Base):
     name: Mapped[str] = mapped_column(String(200), nullable=False)
     code: Mapped[str] = mapped_column(String(50), nullable=False, unique=True)
     specialty: Mapped[Optional[str]] = mapped_column(String(100), nullable=True)
+    user_id: Mapped[Optional[uuid.UUID]] = mapped_column(UUID(as_uuid=True), ForeignKey("users.id"), unique=True)
+    clinic_id: Mapped[Optional[uuid.UUID]] = mapped_column(UUID(as_uuid=True), ForeignKey("clinics.id"))
     created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=datetime.utcnow)
     
+    user: Mapped[Optional["User"]] = relationship("User", back_populates="doctor")
+    clinic: Mapped[Optional["Clinic"]] = relationship("Clinic", back_populates="doctors")
     availabilities: Mapped[list["DoctorDailyAvailability"]] = relationship("DoctorDailyAvailability", back_populates="doctor")
     capacities: Mapped[list["DoctorDailyCapacity"]] = relationship("DoctorDailyCapacity", back_populates="doctor")
     appointments: Mapped[list["Appointment"]] = relationship("Appointment", back_populates="doctor")
