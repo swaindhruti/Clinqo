@@ -24,6 +24,12 @@ class QueueStatus(str, enum.Enum):
     SKIPPED = "skipped"
 
 
+class UserRole(str, enum.Enum):
+    ADMIN = "admin"
+    CLINIC = "clinic"
+    DOCTOR = "doctor"
+
+
 class Patient(Base):
     __tablename__ = "patients"
     
@@ -167,3 +173,19 @@ class QueueEntry(Base):
         UniqueConstraint("doctor_id", "date", "position", name="uq_doctor_date_position"),
         Index("ix_queue_date", "doctor_id", "date", "position"),
     )
+
+
+class User(Base):
+    __tablename__ = "users"
+    
+    id: Mapped[uuid.UUID] = mapped_column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
+    email: Mapped[str] = mapped_column(String(255), nullable=False, unique=True, index=True)
+    hashed_password: Mapped[str] = mapped_column(String(255), nullable=False)
+    role: Mapped[UserRole] = mapped_column(SQLEnum(UserRole), nullable=False)
+    clinic_id: Mapped[Optional[uuid.UUID]] = mapped_column(UUID(as_uuid=True), ForeignKey("clinics.id"), nullable=True)
+    doctor_id: Mapped[Optional[uuid.UUID]] = mapped_column(UUID(as_uuid=True), ForeignKey("doctor_masters.id"), nullable=True)
+    is_active: Mapped[bool] = mapped_column(Boolean, default=True)
+    created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=datetime.utcnow)
+    
+    clinic: Mapped[Optional["Clinic"]] = relationship("Clinic")
+    doctor: Mapped[Optional["DoctorMaster"]] = relationship("DoctorMaster")

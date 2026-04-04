@@ -14,10 +14,14 @@ class Settings(BaseSettings):
     
     MAX_APPOINTMENTS_PER_DOCTOR_PER_DAY: int = 10
     
+    # Auth
+    SECRET_KEY: str = os.getenv("SECRET_KEY", "clinqo-dev-secret-key-change-in-production")
+    ACCESS_TOKEN_EXPIRE_MINUTES: int = int(os.getenv("ACCESS_TOKEN_EXPIRE_MINUTES", "480"))
+    
     class Config:
         env_file = ".env"
         case_sensitive = True
-        extra = "ignore"  # Ignore extra environment variables
+        extra = "ignore"
 
 
 @lru_cache()

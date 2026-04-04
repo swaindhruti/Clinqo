@@ -7,7 +7,7 @@ from app.schemas import (
     AvailabilityResponse, ErrorResponse
 )
 from app.services.doctor_service import DoctorService
-from app.api.v1.deps import get_doctor_service
+from app.api.v1.deps import get_doctor_service, require_clinic_or_admin
 from app.core.logging import get_logger
 
 router = APIRouter(prefix="/doctors", tags=["doctors"])
@@ -22,7 +22,8 @@ logger = get_logger(__name__)
 )
 async def create_doctor(
     doctor_data: DoctorCreate,
-    service: DoctorService = Depends(get_doctor_service)
+    service: DoctorService = Depends(get_doctor_service),
+    _auth=Depends(require_clinic_or_admin)
 ):
     """Create a new doctor"""
     try:

@@ -180,3 +180,39 @@ class ErrorResponse(BaseModel):
     error: str
     message: str
     details: Optional[dict] = None
+
+
+# ==================== Auth Schemas ====================
+
+class UserRegister(BaseModel):
+    email: EmailStr
+    password: str = Field(..., min_length=6, max_length=128)
+    role: str = Field(..., pattern='^(admin|clinic|doctor)$')
+    clinic_id: Optional[UUID] = None
+    doctor_id: Optional[UUID] = None
+
+
+class UserLogin(BaseModel):
+    email: EmailStr
+    password: str
+
+
+class UserResponse(BaseModel):
+    id: UUID
+    email: str
+    role: str
+    clinic_id: Optional[UUID] = None
+    doctor_id: Optional[UUID] = None
+    is_active: bool
+    created_at: datetime
+    
+    class Config:
+        from_attributes = True
+
+
+class TokenResponse(BaseModel):
+    access_token: str
+    token_type: str = "bearer"
+    role: str
+    user_id: str
+

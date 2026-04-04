@@ -4,7 +4,7 @@ from typing import List, Optional
 from app.schemas import ClinicCreate, ClinicResponse, ServiceCategoryCreate, ServiceCategoryResponse, ErrorResponse
 from app.services.clinic_service import ClinicService
 from app.services.service_category_service import ServiceCategoryService
-from app.api.v1.deps import get_clinic_service, get_service_category_service
+from app.api.v1.deps import get_clinic_service, get_service_category_service, require_admin, require_clinic_or_admin
 from app.core.logging import get_logger
 
 router = APIRouter(prefix="/clinics", tags=["clinics"])
@@ -19,7 +19,8 @@ logger = get_logger(__name__)
 )
 async def create_clinic(
     clinic_data: ClinicCreate,
-    service: ClinicService = Depends(get_clinic_service)
+    service: ClinicService = Depends(get_clinic_service),
+    _admin=Depends(require_admin)
 ):
     """Create a new clinic."""
     try:
@@ -95,7 +96,8 @@ async def create_clinic_service(
     clinic_id: UUID,
     category_data: ServiceCategoryCreate,
     clinic_service: ClinicService = Depends(get_clinic_service),
-    sc_service: ServiceCategoryService = Depends(get_service_category_service)
+    sc_service: ServiceCategoryService = Depends(get_service_category_service),
+    _auth=Depends(require_clinic_or_admin)
 ):
     """Create a service category for a clinic."""
     clinic = await clinic_service.get_clinic(clinic_id)
