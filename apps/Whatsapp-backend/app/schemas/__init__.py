@@ -36,10 +36,55 @@ class PatientResponse(BaseModel):
         from_attributes = True
 
 
+class ClinicCreate(BaseModel):
+    name: str = Field(..., min_length=1, max_length=200)
+    address: Optional[str] = Field(None, max_length=500)
+    phone: Optional[str] = Field(None, max_length=20)
+    specialty: Optional[str] = Field(None, max_length=100)
+
+
+class ClinicResponse(BaseModel):
+    id: UUID
+    name: str
+    address: Optional[str]
+    phone: Optional[str]
+    specialty: Optional[str] = None
+    created_at: datetime
+    
+    class Config:
+        from_attributes = True
+
+
+class ServiceCategoryCreate(BaseModel):
+    clinic_id: UUID
+    visit_type: str = Field(..., pattern='^(consultation|procedure)$')
+    name: str = Field(..., min_length=1, max_length=200)
+    price: Optional[str] = Field(None, max_length=50)
+    emoji: Optional[str] = Field(None, max_length=10)
+    sort_order: int = 0
+    detail_questions: Optional[str] = None
+
+
+class ServiceCategoryResponse(BaseModel):
+    id: UUID
+    clinic_id: UUID
+    visit_type: str
+    name: str
+    price: Optional[str] = None
+    emoji: Optional[str] = None
+    sort_order: int = 0
+    detail_questions: Optional[str] = None
+    created_at: datetime
+    
+    class Config:
+        from_attributes = True
+
+
 class DoctorCreate(BaseModel):
     name: str = Field(..., min_length=1, max_length=200)
     code: str = Field(..., min_length=1, max_length=50)
     specialty: Optional[str] = Field(None, max_length=100)
+    clinic_id: Optional[UUID] = None
 
 
 class DoctorResponse(BaseModel):
@@ -47,6 +92,8 @@ class DoctorResponse(BaseModel):
     name: str
     code: str
     specialty: Optional[str]
+    clinic_id: Optional[UUID] = None
+    clinic: Optional[ClinicResponse] = None
     created_at: datetime
     
     class Config:

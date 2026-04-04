@@ -26,9 +26,9 @@ class DoctorService:
         """Get doctor by ID"""
         return await self.repo.get_by_id(doctor_id)
     
-    async def list_doctors(self) -> List[DoctorMaster]:
-        """List all doctors"""
-        return await self.repo.list_all()
+    async def list_doctors(self, specialty: Optional[str] = None, clinic_id: Optional[UUID] = None) -> List[DoctorMaster]:
+        """List all doctors, optionally filtered by specialty and/or clinic."""
+        return await self.repo.list_all(specialty=specialty, clinic_id=clinic_id)
     
     async def upsert_availability(
         self, doctor_id: UUID, availability_date: date, is_present: bool, notes: Optional[str] = None

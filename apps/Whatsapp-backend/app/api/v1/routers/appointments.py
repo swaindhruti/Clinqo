@@ -111,8 +111,9 @@ async def list_all_appointments(
     service: AppointmentService = Depends(get_appointment_service),
     date: Optional[date] = Query(None, description="Date in YYYY-MM-DD format"),
     patient_id: Optional[UUID] = Query(None, description="Filter by patient ID"),
+    limit: Optional[int] = Query(None, description="Max number of results to return"),
 ):
-    """List all appointments across all doctors, optionally filtered by date or patient"""
+    """List all appointments across all doctors, optionally filtered by date, patient, or limited"""
     appointments = await service.list_all_appointments(date, patient_id)
     
     result = []
@@ -133,7 +134,10 @@ async def list_all_appointments(
             "doctor_name": app.doctor.name if getattr(app, 'doctor', None) else None
         }
         result.append(app_dict)
-        
+    
+    if limit and limit > 0:
+        result = result[:limit]
+    
     return result
 
 

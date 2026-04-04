@@ -2,13 +2,12 @@ const express = require('express');
 const bodyParser = require('body-parser');
 const crypto = require('crypto');
 const dotenv = require('dotenv');
-const { processIncomingMessage, startQueueProcessor } = require('./chatbot');
+const { processIncomingMessage } = require('./chatbot');
 
 dotenv.config();
 const app = express();
 
 // IMPORTANT: For signature validation you must capture raw body.
-// We provide JSON parsing for convenience and raw for signature.
 app.use(bodyParser.json({
   verify: (req, res, buf) => { req.rawBody = buf; }
 }));
@@ -83,7 +82,4 @@ app.listen(8080, () => {
   console.log('📱 WhatsApp Chatbot initialized');
   console.log('🌐 Ngrok URL: Use ngrok http 8080 in another terminal');
   console.log('\n' + '='.repeat(60));
-  
-  // Start the queue processor
-  startQueueProcessor(5000);
 });

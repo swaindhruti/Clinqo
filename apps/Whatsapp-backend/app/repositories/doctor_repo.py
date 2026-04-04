@@ -3,6 +3,7 @@ from uuid import UUID
 from datetime import date
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy import select, and_
+from sqlalchemy.orm import joinedload
 from app.models import DoctorMaster, DoctorDailyAvailability, DoctorDailyCapacity
 
 
@@ -29,8 +30,13 @@ class DoctorRepository:
         )
         return result.scalar_one_or_none()
     
-    async def list_all(self) -> List[DoctorMaster]:
-        result = await self.db.execute(select(DoctorMaster))
+    async def list_all(self, specialty: Optional[str] = None, clinic_id: Optional[UUID] = None) -> List[DoctorMaster]:
+        query = select(DoctorMaster).options(joinedload(DoctorMaster.clinic))
+        if specialty:
+            query = query.where(DoctorMaster.specialty == specialty)
+        if clinic_id:
+            query = query.where(DoctorMaster.clinic_id == clinic_id)
+        result = await self.db.execute(query)
         return list(result.scalars().all())
     
     async def upsert_availability(

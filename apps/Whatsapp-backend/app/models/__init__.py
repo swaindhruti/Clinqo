@@ -39,6 +39,36 @@ class Patient(Base):
     appointments: Mapped[list["Appointment"]] = relationship("Appointment", back_populates="patient")
 
 
+class Clinic(Base):
+    __tablename__ = "clinics"
+    
+    id: Mapped[uuid.UUID] = mapped_column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
+    name: Mapped[str] = mapped_column(String(200), nullable=False)
+    address: Mapped[Optional[str]] = mapped_column(String(500), nullable=True)
+    phone: Mapped[Optional[str]] = mapped_column(String(20), nullable=True)
+    specialty: Mapped[Optional[str]] = mapped_column(String(100), nullable=True)
+    created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=datetime.utcnow)
+    
+    doctors: Mapped[list["DoctorMaster"]] = relationship("DoctorMaster", back_populates="clinic")
+    service_categories: Mapped[list["ServiceCategory"]] = relationship("ServiceCategory", back_populates="clinic")
+
+
+class ServiceCategory(Base):
+    __tablename__ = "service_categories"
+    
+    id: Mapped[uuid.UUID] = mapped_column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
+    clinic_id: Mapped[uuid.UUID] = mapped_column(UUID(as_uuid=True), ForeignKey("clinics.id"), nullable=False)
+    visit_type: Mapped[str] = mapped_column(String(50), nullable=False)  # 'consultation' or 'procedure'
+    name: Mapped[str] = mapped_column(String(200), nullable=False)
+    price: Mapped[Optional[str]] = mapped_column(String(50), nullable=True)  # e.g., '₹500'
+    emoji: Mapped[Optional[str]] = mapped_column(String(10), nullable=True)
+    sort_order: Mapped[int] = mapped_column(Integer, default=0)
+    detail_questions: Mapped[Optional[str]] = mapped_column(Text, nullable=True)  # JSON string
+    created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=datetime.utcnow)
+    
+    clinic: Mapped["Clinic"] = relationship("Clinic", back_populates="service_categories")
+
+
 class DoctorMaster(Base):
     __tablename__ = "doctor_masters"
     
@@ -46,8 +76,10 @@ class DoctorMaster(Base):
     name: Mapped[str] = mapped_column(String(200), nullable=False)
     code: Mapped[str] = mapped_column(String(50), nullable=False, unique=True)
     specialty: Mapped[Optional[str]] = mapped_column(String(100), nullable=True)
+    clinic_id: Mapped[Optional[uuid.UUID]] = mapped_column(UUID(as_uuid=True), ForeignKey("clinics.id"), nullable=True)
     created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=datetime.utcnow)
     
+    clinic: Mapped[Optional["Clinic"]] = relationship("Clinic", back_populates="doctors")
     availabilities: Mapped[list["DoctorDailyAvailability"]] = relationship("DoctorDailyAvailability", back_populates="doctor")
     capacities: Mapped[list["DoctorDailyCapacity"]] = relationship("DoctorDailyCapacity", back_populates="doctor")
     appointments: Mapped[list["Appointment"]] = relationship("Appointment", back_populates="doctor")
