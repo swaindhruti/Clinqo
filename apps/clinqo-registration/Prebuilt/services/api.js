@@ -3,10 +3,11 @@
  */
 const axios = require('axios');
 const dotenv = require('dotenv');
+const path = require('path');
 
-dotenv.config();
+dotenv.config({ path: path.join(__dirname, '..', '.env') });
 
-const API_BASE_URL = process.env.API_BASE_URL || 'https://unhawked-jamarion-noncleistogamous.ngrok-free.dev/api/v1';
+const API_BASE_URL = process.env.API_BASE_URL || 'http://localhost:8000/api/v1';
 const headers = { 'Content-Type': 'application/json' };
 
 // ==================== Clinics ====================
@@ -70,6 +71,26 @@ async function fetchAppointmentsByPatient(patientId, limit = 10) {
     return response.data || [];
   } catch (error) {
     console.error('❌ Error fetching appointments:', error.response?.data || error.message);
+    return [];
+  }
+}
+
+async function fetchProcedureBookingsByPatient(patientId, patientPhone = null) {
+  try {
+    const response = await axios.get(`${API_BASE_URL}/procedures`, {
+      params: { patient_id: patientId }, headers
+    });
+    const byPatientId = response.data || [];
+    if (byPatientId.length > 0 || !patientPhone) {
+      return byPatientId;
+    }
+
+    const fallback = await axios.get(`${API_BASE_URL}/procedures`, {
+      params: { patient_phone: patientPhone }, headers
+    });
+    return fallback.data || [];
+  } catch (error) {
+    console.error('❌ Error fetching procedure bookings:', error.response?.data || error.message);
     return [];
   }
 }
@@ -176,6 +197,7 @@ module.exports = {
   createPatientRecord,
   searchPatientByPhone,
   fetchAppointmentsByPatient,
+  fetchProcedureBookingsByPatient,
   fetchDoctors,
   fetchDoctorAvailability,
   fetchDoctorAppointmentsForDate,

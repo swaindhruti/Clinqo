@@ -2,21 +2,21 @@
  * chatbot.js - Core state machine orchestrator (v6)
  * 
  * Entry: QR scan → clinic verified → booking flow
- *        "Hi" → menu (view upcoming/past)
+ *        "Hi" → menu (view upcoming/past appointments and procedures)
  */
 
-const { sendWhatsAppMessage } = require('./services/whatsapp');
+const { sendWhatsAppMessage, sendWhatsAppButtons, sendWhatsAppList } = require('./services/whatsapp');
 const {
   isMessageProcessed, markMessageProcessed,
   getSession, saveSession, createSession,
   clearUserData, resetBookingFields, redisClient
 } = require('./services/session');
-const { fetchClinicById, searchPatientByPhone, fetchAppointmentsByPatient } = require('./services/api');
+const { fetchClinicById, searchPatientByPhone, fetchAppointmentsByPatient, fetchProcedureBookingsByPatient } = require('./services/api');
 const { handlePatientCreation, handleRepeatPatientLookup } = require('./handlers/patient');
 const {
   handleShowSubCategories, sendDetailQuestion,
   handleShowDoctors, handleShowDates, handleShowSlots,
-  sendConsultationConfirmation, handleBooking
+  sendConsultationConfirmation, sendProcedureConfirmation, handleBooking
 } = require('./handlers/booking');
 const { handleQueryLogged } = require('./handlers/query');
 
@@ -26,13 +26,94 @@ const { VISIT_TYPES, getVisitTypeByIndex, getDetailQuestions } = require('./visi
 // Regex to extract clinic ID from QR message: "... (clinic_id)"
 const CLINIC_ID_REGEX = /\(([a-f0-9-]+)\)/i;
 
+function parseIncomingMessageText(messageData) {
+  if (messageData.interactive?.button_reply?.id) {
+    return String(messageData.interactive.button_reply.id).trim();
+  }
+  if (messageData.interactive?.list_reply?.id) {
+    return String(messageData.interactive.list_reply.id).trim();
+  }
+  if (messageData.button?.payload) {
+    return String(messageData.button.payload).trim();
+  }
+  return (messageData.text?.body || '').trim();
+}
+
+async function sendMainMenu(waId, lang = 'en') {
+  try {
+    await sendWhatsAppList(
+      waId,
+      getMessage(lang, 'menu_prompt'),
+      'Open menu',
+      [{
+        title: 'Main Menu',
+        rows: [
+          { id: '1', title: 'Upcoming appointments', description: 'View upcoming appointments' },
+          { id: '2', title: 'Past appointments', description: 'View recent appointments' },
+          { id: '3', title: 'Upcoming procedures', description: 'View upcoming procedures' },
+          { id: '4', title: 'Past procedures', description: 'View recent procedures' },
+        ]
+      }],
+    );
+  } catch (_err) {
+    await sendWhatsAppMessage(waId, getMessage(lang, 'menu_prompt'));
+  }
+}
+
+async function sendLanguageMenu(waId) {
+  try {
+    await sendWhatsAppButtons(
+      waId,
+      'Please choose your language',
+      [
+        { id: '1', title: 'English' },
+        { id: '2', title: 'हिन्दी' },
+        { id: '3', title: 'ଓଡ଼ିଆ' },
+      ]
+    );
+  } catch (_err) {
+    await sendWhatsAppMessage(waId, getMessage('en', 'language_options'));
+  }
+}
+
+async function sendPatientTypeMenu(waId, lang) {
+  try {
+    await sendWhatsAppButtons(
+      waId,
+      getMessage(lang, 'patient_type_prompt'),
+      [
+        { id: '1', title: '🆕 New Patient' },
+        { id: '2', title: '🔄 Returning' },
+      ]
+    );
+  } catch (_err) {
+    await sendWhatsAppMessage(waId, getMessage(lang, 'patient_type_prompt'));
+  }
+}
+
+async function sendVisitTypeMenu(waId, lang) {
+  try {
+    await sendWhatsAppButtons(
+      waId,
+      getMessage(lang, 'visit_type_prompt'),
+      [
+        { id: '1', title: '🩺 Consultation' },
+        { id: '2', title: '💉 Procedure' },
+        { id: '3', title: '❓ General Query' },
+      ]
+    );
+  } catch (_err) {
+    await sendWhatsAppMessage(waId, getMessage(lang, 'visit_type_prompt'));
+  }
+}
+
 // ==================== Core Message Processor ====================
 
 async function processIncomingMessage(messageData) {
   try {
     const waId = messageData.from;
     const messageId = messageData.id;
-    const messageText = (messageData.text?.body || '').trim();
+    const messageText = parseIncomingMessageText(messageData);
     const messageTextLower = messageText.toLowerCase();
 
     console.log(`\n📨 Received from ${waId}: "${messageText}"`);
@@ -44,8 +125,8 @@ async function processIncomingMessage(messageData) {
     }
     await markMessageProcessed(waId, messageId);
 
-    // "end" command
-    if (messageTextLower === 'end') {
+    // "end" / "exit" command
+    if (messageTextLower === 'end' || messageTextLower === 'exit') {
       let session = await getSession(waId);
       const lang = session?.language || 'en';
       await sendWhatsAppMessage(waId, getMessage(lang, 'end_message'));
@@ -81,7 +162,7 @@ async function processIncomingMessage(messageData) {
             session.state = 'LANGUAGE_SELECT';
             await saveSession(waId, session);
             await sendWhatsAppMessage(waId, getMessage('en', 'clinic_verified', { clinic_name: clinic.name }));
-            await sendWhatsAppMessage(waId, getMessage('en', 'language_options'));
+            await sendLanguageMenu(waId);
           } else {
             await sendWhatsAppMessage(waId, getMessage('en', 'invalid_clinic'));
             await clearUserData(waId);
@@ -90,14 +171,14 @@ async function processIncomingMessage(messageData) {
           // "Hi" or generic message — show menu
           session.state = 'MENU';
           await saveSession(waId, session);
-          await sendWhatsAppMessage(waId, getMessage('en', 'menu_prompt'));
+          await sendMainMenu(waId, 'en');
         }
         return { status: 'init_handled' };
       }
 
-      // ==================== MENU — View upcoming/past ====================
+      // ==================== MENU — View upcoming/past appointments/procedures ====================
       case 'MENU': {
-        if (messageText !== '1' && messageText !== '2') {
+        if (!['1', '2', '3', '4'].includes(messageText)) {
           // Check if this is a QR message that came while in MENU state
           const match = messageText.match(CLINIC_ID_REGEX);
           if (match) {
@@ -110,11 +191,12 @@ async function processIncomingMessage(messageData) {
               session.state = 'LANGUAGE_SELECT';
               await saveSession(waId, session);
               await sendWhatsAppMessage(waId, getMessage('en', 'clinic_verified', { clinic_name: clinic.name }));
-              await sendWhatsAppMessage(waId, getMessage('en', 'language_options'));
+              await sendLanguageMenu(waId);
               return { status: 'qr_from_menu' };
             }
           }
           await sendWhatsAppMessage(waId, getMessage('en', 'invalid_menu'));
+          await sendMainMenu(waId, 'en');
           return { status: 'invalid_input' };
         }
         // Search patient by phone
@@ -125,36 +207,72 @@ async function processIncomingMessage(messageData) {
           return { status: 'no_patient' };
         }
         const appts = await fetchAppointmentsByPatient(patient.id, 10);
+        const procedureBookings = await fetchProcedureBookingsByPatient(patient.id, waId);
         const today = new Date().toISOString().split('T')[0];
 
-        if (messageText === '1') {
+        const isProcedureMenu = messageText === '3' || messageText === '4';
+        const selectedVisitType = isProcedureMenu ? 'procedure' : 'consultation';
+
+        if (messageText === '1' || messageText === '3') {
           // Upcoming
-          const upcoming = (appts || []).filter(a => a.date >= today && a.status === 'booked');
+          const upcoming = isProcedureMenu
+            ? (procedureBookings || []).filter((p) => p.preferred_date >= today && p.status !== 'completed' && p.status !== 'cancelled')
+            : (appts || []).filter((a) => a.visit_type === selectedVisitType && a.date >= today && a.status === 'booked');
           if (upcoming.length === 0) {
-            await sendWhatsAppMessage(waId, getMessage('en', 'no_upcoming'));
+            await sendWhatsAppMessage(
+              waId,
+              getMessage('en', isProcedureMenu ? 'no_upcoming_procedures' : 'no_upcoming')
+            );
           } else {
-            let msg = getMessage('en', 'upcoming_header');
+            let msg = getMessage('en', isProcedureMenu ? 'upcoming_procedures_header' : 'upcoming_header');
             upcoming.forEach((a, idx) => {
-              msg += getMessage('en', 'appt_list_item', {
-                index: String(idx + 1), doctor: a.doctor_name || 'N/A',
-                date: a.date, status: a.status
-              }) + '\n';
+              if (isProcedureMenu) {
+                msg += getMessage('en', 'procedure_list_item', {
+                  index: String(idx + 1),
+                  sub_category: a.sub_category || 'Procedure',
+                  date: a.preferred_date,
+                  status: a.status,
+                }) + '\n';
+              } else {
+                msg += getMessage('en', 'appt_list_item', {
+                  index: String(idx + 1), doctor: a.doctor_name || 'N/A',
+                  date: a.date, status: a.status
+                }) + '\n';
+              }
             });
             msg += getMessage('en', 'view_done');
             await sendWhatsAppMessage(waId, msg);
           }
         } else {
           // Past 5
-          const past = (appts || []).filter(a => a.date < today || a.status !== 'booked').slice(0, 5);
+          const past = isProcedureMenu
+            ? (procedureBookings || [])
+              .filter((p) => p.preferred_date < today || p.status === 'completed' || p.status === 'cancelled')
+              .slice(0, 5)
+            : (appts || [])
+              .filter((a) => a.visit_type === selectedVisitType && (a.date < today || a.status !== 'booked'))
+              .slice(0, 5);
           if (past.length === 0) {
-            await sendWhatsAppMessage(waId, getMessage('en', 'no_past'));
+            await sendWhatsAppMessage(
+              waId,
+              getMessage('en', isProcedureMenu ? 'no_past_procedures' : 'no_past')
+            );
           } else {
-            let msg = getMessage('en', 'past_header');
+            let msg = getMessage('en', isProcedureMenu ? 'past_procedures_header' : 'past_header');
             past.forEach((a, idx) => {
-              msg += getMessage('en', 'appt_list_item', {
-                index: String(idx + 1), doctor: a.doctor_name || 'N/A',
-                date: a.date, status: a.status
-              }) + '\n';
+              if (isProcedureMenu) {
+                msg += getMessage('en', 'procedure_list_item', {
+                  index: String(idx + 1),
+                  sub_category: a.sub_category || 'Procedure',
+                  date: a.preferred_date,
+                  status: a.status,
+                }) + '\n';
+              } else {
+                msg += getMessage('en', 'appt_list_item', {
+                  index: String(idx + 1), doctor: a.doctor_name || 'N/A',
+                  date: a.date, status: a.status
+                }) + '\n';
+              }
             });
             msg += getMessage('en', 'view_done');
             await sendWhatsAppMessage(waId, msg);
@@ -169,18 +287,20 @@ async function processIncomingMessage(messageData) {
         const langCode = getLanguageCode(messageText);
         if (!langCode) {
           await sendWhatsAppMessage(waId, getMessage('en', 'invalid_language'));
+          await sendLanguageMenu(waId);
           return { status: 'invalid_input' };
         }
         session.language = langCode;
         session.state = 'PATIENT_TYPE';
         await saveSession(waId, session);
-        await sendWhatsAppMessage(waId, getMessage(langCode, 'patient_type_prompt'));
+        await sendPatientTypeMenu(waId, langCode);
         return { status: 'language_selected' };
       }
 
       case 'PATIENT_TYPE': {
         if (messageText !== '1' && messageText !== '2') {
           await sendWhatsAppMessage(waId, getMessage(lang, 'invalid_patient_type'));
+          await sendPatientTypeMenu(waId, lang);
           return { status: 'invalid_input' };
         }
         if (messageText === '1') {
@@ -236,6 +356,7 @@ async function processIncomingMessage(messageData) {
         const vtIndex = parseInt(messageText);
         if (isNaN(vtIndex) || vtIndex < 1 || vtIndex > VISIT_TYPES.length) {
           await sendWhatsAppMessage(waId, getMessage(lang, 'invalid_visit_type'));
+          await sendVisitTypeMenu(waId, lang);
           return { status: 'invalid_input' };
         }
         const vt = getVisitTypeByIndex(vtIndex);
@@ -370,7 +491,7 @@ async function processIncomingMessage(messageData) {
           resetBookingFields(session);
           session.state = 'VISIT_TYPE_SELECT';
           await saveSession(waId, session);
-          await sendWhatsAppMessage(waId, getMessage(lang, 'visit_type_prompt'));
+          await sendVisitTypeMenu(waId, lang);
         }
         return { status: 'confirm_handled' };
       }

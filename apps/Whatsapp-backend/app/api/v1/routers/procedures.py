@@ -4,7 +4,7 @@ from datetime import date
 from typing import List, Optional
 from app.schemas import ProcedureBookingCreate, ProcedureBookingResponse, ErrorResponse
 from app.services.procedure_service import ProcedureService
-from app.api.v1.deps import get_procedure_service, require_any_auth
+from app.api.v1.deps import get_procedure_service
 
 router = APIRouter(prefix="/procedures", tags=["procedures"])
 
@@ -40,11 +40,12 @@ async def list_procedure_bookings(
     date: Optional[date] = Query(None, description="Filter by preferred date"),
     status: Optional[str] = Query(None, description="Filter by status"),
     patient_id: Optional[UUID] = Query(None, description="Filter by patient ID"),
-    _auth=Depends(require_any_auth),
+    patient_phone: Optional[str] = Query(None, description="Filter by patient phone number"),
 ):
     return await service.list_bookings(
         clinic_id=clinic_id,
         preferred_date=date,
         status=status,
         patient_id=patient_id,
+        patient_phone=patient_phone,
     )

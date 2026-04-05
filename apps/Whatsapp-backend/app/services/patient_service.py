@@ -34,4 +34,4 @@ class PatientService:
     
     async def get_patient_by_phone(self, phone: str) -> Optional[Patient]:
         """Get patient by phone number"""
-        return await self.repo.get_by_phone(phone)
+        return await self.repo.get_by_phone_flexible(phone)

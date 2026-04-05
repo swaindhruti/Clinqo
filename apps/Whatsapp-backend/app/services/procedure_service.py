@@ -35,10 +35,12 @@ class ProcedureService:
         preferred_date: Optional[date] = None,
         status: Optional[str] = None,
         patient_id: Optional[UUID] = None,
+        patient_phone: Optional[str] = None,
     ) -> List[ProcedureBooking]:
         return await self.repo.list_bookings(
             clinic_id=clinic_id,
             preferred_date=preferred_date,
             status=status,
             patient_id=patient_id,
+            patient_phone=patient_phone,
         )

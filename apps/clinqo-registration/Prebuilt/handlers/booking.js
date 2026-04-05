@@ -2,7 +2,7 @@
  * handlers/booking.js - Sub-category, doctor, date, slot, and booking handlers
  * Sub-categories are now fetched from the backend API.
  */
-const { sendWhatsAppMessage } = require('../services/whatsapp');
+const { sendWhatsAppMessage, sendWhatsAppButtons, sendWhatsAppList } = require('../services/whatsapp');
 const {
   fetchServiceCategories, fetchDoctors,
   fetchDoctorSlotAvailability, createAppointment, createProcedureBooking
@@ -10,6 +10,42 @@ const {
 const { saveSession, clearUserData } = require('../services/session');
 const { getMessage, getDayName } = require('../i18n');
 const { getDetailQuestions } = require('../visit-types');
+
+function short(text, max = 24) {
+  if (!text) return '';
+  return text.length > max ? `${text.slice(0, max - 1)}…` : text;
+}
+
+async function sendVisitTypeMenu(waId, lang) {
+  try {
+    await sendWhatsAppButtons(
+      waId,
+      getMessage(lang, 'visit_type_prompt'),
+      [
+        { id: '1', title: '🩺 Consultation' },
+        { id: '2', title: '💉 Procedure' },
+        { id: '3', title: '❓ General Query' },
+      ]
+    );
+  } catch (_err) {
+    await sendWhatsAppMessage(waId, getMessage(lang, 'visit_type_prompt'));
+  }
+}
+
+async function sendConfirmButtons(waId, lang) {
+  try {
+    await sendWhatsAppButtons(
+      waId,
+      getMessage(lang, 'confirm_action_text'),
+      [
+        { id: '1', title: '✅ Yes' },
+        { id: '2', title: '❌ No' },
+      ]
+    );
+  } catch (_err) {
+    await sendWhatsAppMessage(waId, getMessage(lang, 'confirm_prompt'));
+  }
+}
 
 // Default time slots (9 AM - 5 PM)
 const ALL_TIME_SLOTS = [
@@ -47,7 +83,7 @@ async function handleShowSubCategories(waId, session, lang) {
       await sendWhatsAppMessage(waId, getMessage(lang, 'no_sub_categories'));
       session.state = 'VISIT_TYPE_SELECT';
       await saveSession(waId, session);
-      await sendWhatsAppMessage(waId, getMessage(lang, 'visit_type_prompt'));
+      await sendVisitTypeMenu(waId, lang);
       return;
     }
 
@@ -65,7 +101,23 @@ async function handleShowSubCategories(waId, session, lang) {
     session.cached_sub_categories = subCats;
     session.state = 'SUB_CATEGORY_SELECT';
     await saveSession(waId, session);
-    await sendWhatsAppMessage(waId, msg);
+    try {
+      await sendWhatsAppList(
+        waId,
+        getMessage(lang, 'sub_category_header'),
+        'Choose',
+        [{
+          title: 'Sub-categories',
+          rows: subCats.map((cat, idx) => ({
+            id: String(idx + 1),
+            title: short(`${cat.emoji || '📋'} ${cat.name}`),
+            description: short(`Fee: ${cat.price || 'N/A'}`, 72),
+          }))
+        }]
+      );
+    } catch (_err) {
+      await sendWhatsAppMessage(waId, msg);
+    }
   } catch (error) {
     console.error('❌ Show sub-categories failed:', error);
     await sendWhatsAppMessage(waId, getMessage(lang, 'generic_error'));
@@ -89,12 +141,12 @@ async function sendDetailQuestion(waId, session, lang) {
 
 async function handleShowDoctors(waId, session, lang) {
   try {
-    const doctors = await fetchDoctors(session.clinic_specialty, session.clinic_id);
+    const doctors = await fetchDoctors(undefined, session.clinic_id);
     if (!doctors || doctors.length === 0) {
       await sendWhatsAppMessage(waId, getMessage(lang, 'no_doctors'));
       session.state = 'VISIT_TYPE_SELECT';
       await saveSession(waId, session);
-      await sendWhatsAppMessage(waId, getMessage(lang, 'visit_type_prompt'));
+      await sendVisitTypeMenu(waId, lang);
       return;
     }
     let msg = getMessage(lang, 'doctors_header');
@@ -107,7 +159,23 @@ async function handleShowDoctors(waId, session, lang) {
     session.cached_doctors = doctors;
     session.state = 'PICK_DOCTOR';
     await saveSession(waId, session);
-    await sendWhatsAppMessage(waId, msg);
+    try {
+      await sendWhatsAppList(
+        waId,
+        getMessage(lang, 'doctors_header'),
+        'Choose',
+        [{
+          title: 'Doctors',
+          rows: doctors.map((doc, idx) => ({
+            id: String(idx + 1),
+            title: short(doc.name || `Doctor ${idx + 1}`),
+            description: short(doc.specialty || 'General', 72),
+          }))
+        }]
+      );
+    } catch (_err) {
+      await sendWhatsAppMessage(waId, msg);
+    }
   } catch (error) {
     console.error('❌ Show doctors failed:', error);
     await sendWhatsAppMessage(waId, getMessage(lang, 'generic_error'));
@@ -153,7 +221,23 @@ async function handleShowDates(waId, session, lang) {
     session.cached_dates = availableDates;
     session.state = 'PICK_DATE';
     await saveSession(waId, session);
-    await sendWhatsAppMessage(waId, msg);
+    try {
+      await sendWhatsAppList(
+        waId,
+        getMessage(lang, 'dates_header'),
+        'Choose',
+        [{
+          title: 'Available dates',
+          rows: availableDates.map((d, idx) => ({
+            id: String(idx + 1),
+            title: short(d.dateStr),
+            description: short(getDayName(lang, d.dayIndex), 72),
+          }))
+        }]
+      );
+    } catch (_err) {
+      await sendWhatsAppMessage(waId, msg);
+    }
   } catch (error) {
     console.error('❌ Show dates failed:', error);
     await sendWhatsAppMessage(waId, getMessage(lang, 'generic_error'));
@@ -180,7 +264,23 @@ async function handleShowSlots(waId, session, lang) {
     session.cached_slots = available;
     session.state = 'PICK_SLOT';
     await saveSession(waId, session);
-    await sendWhatsAppMessage(waId, msg);
+    try {
+      await sendWhatsAppList(
+        waId,
+        getMessage(lang, 'slots_header'),
+        'Choose',
+        [{
+          title: 'Available slots',
+          rows: available.map((slot, idx) => ({
+            id: String(idx + 1),
+            title: short(slot.slot_label || `Slot ${idx + 1}`),
+            description: short('Tap to select this time', 72),
+          }))
+        }]
+      );
+    } catch (_err) {
+      await sendWhatsAppMessage(waId, msg);
+    }
   } catch (error) {
     console.error('❌ Show slots failed:', error);
     await sendWhatsAppMessage(waId, getMessage(lang, 'generic_error'));
@@ -198,8 +298,8 @@ async function sendConsultationConfirmation(waId, session, lang) {
     fee: session.fee || 'N/A', doctor: session.doctor_name || 'N/A',
     date: session.selected_date, time: timeLabel, concern
   });
-  msg += getMessage(lang, 'confirm_prompt');
   await sendWhatsAppMessage(waId, msg);
+  await sendConfirmButtons(waId, lang);
 }
 
 async function sendProcedureConfirmation(waId, session, lang) {
@@ -209,8 +309,8 @@ async function sendProcedureConfirmation(waId, session, lang) {
     sub_category: session.sub_category_name || 'N/A',
     fee: session.fee || 'N/A', concern
   });
-  msg += getMessage(lang, 'confirm_prompt');
   await sendWhatsAppMessage(waId, msg);
+  await sendConfirmButtons(waId, lang);
 }
 
 async function handleBooking(waId, session, lang) {
@@ -220,18 +320,37 @@ async function handleBooking(waId, session, lang) {
 
     const visitType = session.visit_type?.toLowerCase() === 'procedure' ? 'procedure' : 'consultation';
     const timeLabel = selectedSlot?.slot_label || formatTimeSlot(session.selected_slot);
+    const concern = session.detail_answers?.concern || 'N/A';
 
     if (visitType === 'procedure') {
-      await createProcedureBooking(
+      const appointment = await createAppointment(
+        session.patient_id,
+        session.doctor_id,
+        session.selected_date,
+        session.selected_slot,
+        undefined,
+        {
+          slotLabel: selectedSlot?.slot_label || session.selected_slot_label,
+          visitType,
+          intakeData: session.detail_answers || {},
+        }
+      );
+
+      try {
+        await createProcedureBooking(
         session.clinic_id,
         session.patient_id,
         session.selected_date,
         timeLabel,
         session.detail_answers || {},
         session.sub_category_name || null,
-      );
+        );
+      } catch (procedureError) {
+        console.warn('⚠️ Procedure booking record creation failed (appointment still created):', procedureError.message || procedureError);
+      }
 
-      const concern = session.detail_answers?.concern || 'N/A';
+      const checkInCode = appointment.check_in_code || 'N/A';
+      const qrUrl = `https://api.qrserver.com/v1/create-qr-code/?size=300x300&data=${encodeURIComponent(checkInCode)}`;
       const details = getMessage(lang, 'procedure_confirm_details', {
         name: session.name,
         clinic: session.clinic_name || 'N/A',
@@ -242,8 +361,8 @@ async function handleBooking(waId, session, lang) {
 
       await sendWhatsAppMessage(waId, getMessage(lang, 'booking_success', {
         details: `${details}\n📅 Preferred Date: ${session.selected_date}\n🕒 Preferred Time: ${timeLabel}`,
-        check_in_code: 'N/A',
-        qr_url: 'N/A',
+        check_in_code: checkInCode,
+        qr_url: qrUrl,
       }));
 
       session.state = 'COMPLETE';
@@ -263,9 +382,8 @@ async function handleBooking(waId, session, lang) {
         intakeData: session.detail_answers || {},
       }
     );
-    const concern = session.detail_answers?.concern || 'N/A';
     const checkInCode = appointment.check_in_code || 'N/A';
-    const qrUrl = `https://api.qrserver.com/v1/create-qr-code/?size=300x300&data=${checkInCode}`;
+    const qrUrl = `https://api.qrserver.com/v1/create-qr-code/?size=300x300&data=${encodeURIComponent(checkInCode)}`;
     const details = getMessage(lang, 'confirm_consultation_details', {
       name: session.name, clinic: session.clinic_name || 'N/A',
       sub_category: session.sub_category_name || 'N/A',

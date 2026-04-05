@@ -57,6 +57,10 @@ export function DataTable<TData, TValue>({
     },
   });
 
+  const filterTargetColumn = filterColumn
+    ? table.getColumn(filterColumn)
+    : undefined;
+
   return (
     <div className="space-y-4">
       <div className="flex items-center justify-between">
@@ -80,17 +84,15 @@ export function DataTable<TData, TValue>({
           <div />
         )}
 
-        {filterColumn && filterOptions.length > 0 && (
+        {filterTargetColumn && filterOptions.length > 0 && (
           <select
             className="flex h-10 items-center justify-between rounded-md border border-neutral-200 bg-white px-3 py-2 text-sm ring-offset-white placeholder:text-neutral-500 focus:outline-none focus:ring-2 focus:ring-neutral-950 focus:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-50 w-[180px]"
-            value={
-              (table.getColumn(filterColumn)?.getFilterValue() as string) ?? ""
-            }
+            value={(filterTargetColumn.getFilterValue() as string) ?? ""}
             onChange={(e) => {
               const val = e.target.value;
-              table
-                .getColumn(filterColumn)
-                ?.setFilterValue(val === "all" ? undefined : val);
+              filterTargetColumn.setFilterValue(
+                val === "all" ? undefined : val,
+              );
             }}
           >
             <option value="all">All</option>

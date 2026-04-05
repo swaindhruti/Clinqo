@@ -23,7 +23,10 @@ class AppointmentRepository:
     
     async def get_by_idempotency_key(self, idempotency_key: str) -> Optional[Appointment]:
         result = await self.db.execute(
-            select(Appointment).where(Appointment.idempotency_key == idempotency_key)
+            select(Appointment).options(
+                joinedload(Appointment.patient),
+                joinedload(Appointment.doctor),
+            ).where(Appointment.idempotency_key == idempotency_key)
         )
         return result.scalar_one_or_none()
     
@@ -153,8 +156,9 @@ class AppointmentRepository:
         self.db.add(appointment)
         await self.db.commit()
         await self.db.refresh(appointment)
-        
-        return appointment
+
+        loaded = await self.get_by_id(appointment.id)
+        return loaded or appointment
 
     async def count_booked_for_slot(
         self,

@@ -1,10 +1,26 @@
 /**
  * handlers/patient.js - Patient registration and history handlers
  */
-const { sendWhatsAppMessage } = require('../services/whatsapp');
+const { sendWhatsAppMessage, sendWhatsAppButtons } = require('../services/whatsapp');
 const { createPatientRecord, searchPatientByPhone } = require('../services/api');
 const { saveSession, clearUserData } = require('../services/session');
 const { getMessage } = require('../i18n');
+
+async function sendVisitTypeMenu(waId, lang) {
+  try {
+    await sendWhatsAppButtons(
+      waId,
+      getMessage(lang, 'visit_type_prompt'),
+      [
+        { id: '1', title: '🩺 Consultation' },
+        { id: '2', title: '💉 Procedure' },
+        { id: '3', title: '❓ General Query' },
+      ]
+    );
+  } catch (_err) {
+    await sendWhatsAppMessage(waId, getMessage(lang, 'visit_type_prompt'));
+  }
+}
 
 async function handlePatientCreation(waId, session, lang) {
   try {
@@ -13,7 +29,7 @@ async function handlePatientCreation(waId, session, lang) {
     session.state = 'VISIT_TYPE_SELECT';
     await saveSession(waId, session);
     await sendWhatsAppMessage(waId, getMessage(lang, 'patient_created', { patient_id: patient.id }));
-    await sendWhatsAppMessage(waId, getMessage(lang, 'visit_type_prompt'));
+    await sendVisitTypeMenu(waId, lang);
   } catch (error) {
     console.error('❌ Patient creation failed:', error);
     await sendWhatsAppMessage(waId, getMessage(lang, 'generic_error'));
@@ -40,7 +56,7 @@ async function handleRepeatPatientLookup(waId, session, lang) {
     session.state = 'VISIT_TYPE_SELECT';
     await saveSession(waId, session);
     await sendWhatsAppMessage(waId, getMessage(lang, 'welcome_back', { name: patient.name }));
-    await sendWhatsAppMessage(waId, getMessage(lang, 'visit_type_prompt'));
+    await sendVisitTypeMenu(waId, lang);
   } catch (error) {
     console.error('❌ Patient lookup failed:', error);
     await sendWhatsAppMessage(waId, getMessage(lang, 'generic_error'));

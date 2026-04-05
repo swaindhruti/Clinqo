@@ -2,9 +2,9 @@ from typing import Optional, List
 from uuid import UUID
 from datetime import date
 from sqlalchemy.ext.asyncio import AsyncSession
-from sqlalchemy import select, and_
+from sqlalchemy import select, and_, func
 from sqlalchemy.orm import joinedload
-from app.models import ProcedureBooking
+from app.models import ProcedureBooking, Patient
 
 
 class ProcedureRepository:
@@ -16,7 +16,8 @@ class ProcedureRepository:
         self.db.add(booking)
         await self.db.commit()
         await self.db.refresh(booking)
-        return booking
+        loaded = await self.get_by_id(booking.id)
+        return loaded or booking
 
     async def list_bookings(
         self,
@@ -24,6 +25,7 @@ class ProcedureRepository:
         preferred_date: Optional[date] = None,
         status: Optional[str] = None,
         patient_id: Optional[UUID] = None,
+        patient_phone: Optional[str] = None,
     ) -> List[ProcedureBooking]:
         query = select(ProcedureBooking).options(
             joinedload(ProcedureBooking.patient),
@@ -38,6 +40,13 @@ class ProcedureRepository:
             query = query.where(ProcedureBooking.status == status)
         if patient_id:
             query = query.where(ProcedureBooking.patient_id == patient_id)
+        if patient_phone:
+            import re
+            digits = re.sub(r'\D', '', patient_phone)
+            if digits:
+                query = query.join(Patient, ProcedureBooking.patient_id == Patient.id).where(
+                    func.regexp_replace(Patient.phone, '[^0-9]', '', 'g') == digits
+                )
 
         result = await self.db.execute(
             query.order_by(ProcedureBooking.preferred_date.desc(), ProcedureBooking.created_at.desc())

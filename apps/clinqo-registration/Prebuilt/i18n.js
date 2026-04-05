@@ -21,14 +21,14 @@ const MESSAGES = {
     od: "❌ କ୍ଷମା କରନ୍ତୁ, କ୍ଲିନିକ୍ ଆଇଡି ବୈଧ ନୁହେଁ। ଦୟାକରି ସଠିକ QR କୋଡ୍ ସ୍କାନ୍ କରନ୍ତୁ।"
   },
   menu_prompt: {
-    en: "Hello! 👋 How can we help?\n\n1. 📋 View upcoming appointments\n2. 📜 View past appointments\n\n_To book a new appointment, please scan the clinic QR code._",
-    hi: "नमस्ते! 👋 हम कैसे मदद कर सकते हैं?\n\n1. 📋 आगामी अपॉइंटमेंट देखें\n2. 📜 पिछली अपॉइंटमेंट देखें\n\n_नई अपॉइंटमेंट बुक करने के लिए क्लिनिक QR कोड स्कैन करें।_",
-    od: "ନମସ୍କାର! 👋 ଆମେ କିପରି ସାହାଯ୍ୟ କରିବା?\n\n1. 📋 ଆଗାମୀ ଆପଏଣ୍ଟମେଣ୍ଟ ଦେଖନ୍ତୁ\n2. 📜 ପୂର୍ବ ଆପଏଣ୍ଟମେଣ୍ଟ ଦେଖନ୍ତୁ\n\n_ନୂଆ ଆପଏଣ୍ଟମେଣ୍ଟ ବୁକ୍ କରିବା ପାଇଁ କ୍ଲିନିକ୍ QR କୋଡ୍ ସ୍କାନ୍ କରନ୍ତୁ।_"
+    en: "Hello! 👋 How can we help?\n\n1. 📋 View upcoming appointments\n2. 📜 View past appointments\n3. 💉 View upcoming procedures\n4. 🧾 View past procedures\n\n_To book a new appointment, please scan the clinic QR code._",
+    hi: "नमस्ते! 👋 हम कैसे मदद कर सकते हैं?\n\n1. 📋 आगामी अपॉइंटमेंट देखें\n2. 📜 पिछली अपॉइंटमेंट देखें\n3. 💉 आगामी प्रक्रियाएँ देखें\n4. 🧾 पिछली प्रक्रियाएँ देखें\n\n_नई अपॉइंटमेंट बुक करने के लिए क्लिनिक QR कोड स्कैन करें।_",
+    od: "ନମସ୍କାର! 👋 ଆମେ କିପରି ସାହାଯ୍ୟ କରିବା?\n\n1. 📋 ଆଗାମୀ ଆପଏଣ୍ଟମେଣ୍ଟ ଦେଖନ୍ତୁ\n2. 📜 ପୂର୍ବ ଆପଏଣ୍ଟମେଣ୍ଟ ଦେଖନ୍ତୁ\n3. 💉 ଆଗାମୀ ପ୍ରକ୍ରିୟା ଦେଖନ୍ତୁ\n4. 🧾 ପୂର୍ବ ପ୍ରକ୍ରିୟା ଦେଖନ୍ତୁ\n\n_ନୂଆ ଆପଏଣ୍ଟମେଣ୍ଟ ବୁକ୍ କରିବା ପାଇଁ କ୍ଲିନିକ୍ QR କୋଡ୍ ସ୍କାନ୍ କରନ୍ତୁ।_"
   },
   invalid_menu: {
-    en: "Please enter 1 or 2.",
-    hi: "कृपया 1 या 2 दर्ज करें।",
-    od: "ଦୟାକରି 1 ବା 2 ଲେଖନ୍ତୁ।"
+    en: "Please enter 1, 2, 3, or 4.",
+    hi: "कृपया 1, 2, 3, या 4 दर्ज करें।",
+    od: "ଦୟାକରି 1, 2, 3, ବା 4 ଲେଖନ୍ତୁ।"
   },
   no_patient_found_menu: {
     en: "No records found for your number. Please scan a clinic QR code to book your first appointment.",
@@ -50,15 +50,40 @@ const MESSAGES = {
     hi: "{index}. डॉ. {doctor} — {date} ({status})",
     od: "{index}. ଡାକ୍ତର {doctor} — {date} ({status})"
   },
+  procedure_list_item: {
+    en: "{index}. {sub_category} — {date} ({status})",
+    hi: "{index}. {sub_category} — {date} ({status})",
+    od: "{index}. {sub_category} — {date} ({status})"
+  },
   no_upcoming: {
     en: "No upcoming appointments found.\n\nScan a clinic QR code to book one! 👋",
     hi: "कोई आगामी अपॉइंटमेंट नहीं मिली।\n\nबुक करने के लिए क्लिनिक QR कोड स्कैन करें! 👋",
     od: "କୌଣସି ଆଗାମୀ ଆପଏଣ୍ଟମେଣ୍ଟ ମିଳିଲା ନାହିଁ।\n\nବୁକ୍ କରିବା ପାଇଁ କ୍ଲିନିକ୍ QR କୋଡ୍ ସ୍କାନ୍ କରନ୍ତୁ! 👋"
   },
+  upcoming_procedures_header: {
+    en: "💉 Your upcoming procedures:\n",
+    hi: "💉 आपकी आगामी प्रक्रियाएँ:\n",
+    od: "💉 ଆପଣଙ୍କର ଆଗାମୀ ପ୍ରକ୍ରିୟା:\n"
+  },
+  no_upcoming_procedures: {
+    en: "No upcoming procedures found.\n\nScan a clinic QR code to book one! 👋",
+    hi: "कोई आगामी प्रक्रिया नहीं मिली।\n\nबुक करने के लिए क्लिनिक QR कोड स्कैन करें! 👋",
+    od: "କୌଣସି ଆଗାମୀ ପ୍ରକ୍ରିୟା ମିଳିଲା ନାହିଁ।\n\nବୁକ୍ କରିବା ପାଇଁ କ୍ଲିନିକ୍ QR କୋଡ୍ ସ୍କାନ୍ କରନ୍ତୁ! 👋"
+  },
   no_past: {
     en: "No past appointments found.\n\nScan a clinic QR code to book your first! 👋",
     hi: "कोई पास्ट अपॉइंटमेंट नहीं मिली।\n\nपहली बुकिंग के लिए QR कोड स्कैन करें! 👋",
     od: "କୌଣସି ପୂର୍ବ ଆପଏଣ୍ଟମେଣ୍ଟ ମିଳିଲା ନାହିଁ।\n\nପ୍ରଥମ ବୁକିଂ ପାଇଁ QR କୋଡ୍ ସ୍କାନ୍ କରନ୍ତୁ! 👋"
+  },
+  past_procedures_header: {
+    en: "🧾 Your recent procedures:\n",
+    hi: "🧾 आपकी हालिया प्रक्रियाएँ:\n",
+    od: "🧾 ଆପଣଙ୍କର ସାମ୍ପ୍ରତିକ ପ୍ରକ୍ରିୟା:\n"
+  },
+  no_past_procedures: {
+    en: "No past procedures found.\n\nScan a clinic QR code to book your first! 👋",
+    hi: "कोई पिछली प्रक्रिया नहीं मिली।\n\nपहली बुकिंग के लिए QR कोड स्कैन करें! 👋",
+    od: "କୌଣସି ପୂର୍ବ ପ୍ରକ୍ରିୟା ମିଳିଲା ନାହିଁ।\n\nପ୍ରଥମ ବୁକିଂ ପାଇଁ QR କୋଡ୍ ସ୍କାନ୍ କରନ୍ତୁ! 👋"
   },
   view_done: {
     en: "\nSend any message to see the menu again. 👋",
@@ -249,6 +274,11 @@ const MESSAGES = {
     en: "\nConfirm this appointment?\n1. ✅ Yes\n2. ❌ No (start over from appointment type)",
     hi: "\nक्या आप इस अपॉइंटमेंट की पुष्टि करते हैं?\n1. ✅ हाँ\n2. ❌ नहीं (अपॉइंटमेंट प्रकार से फिर से शुरू करें)",
     od: "\nଏହି ଆପଏଣ୍ଟମେଣ୍ଟ ନିଶ୍ଚିତ କରନ୍ତି?\n1. ✅ ହଁ\n2. ❌ ନା (ଆପଏଣ୍ଟମେଣ୍ଟ ପ୍ରକାରରୁ ପୁନର୍ବାର ଆରମ୍ଭ)"
+  },
+  confirm_action_text: {
+    en: "Confirm this appointment",
+    hi: "इस अपॉइंटमेंट की पुष्टि करें",
+    od: "ଏହି ଆପଏଣ୍ଟମେଣ୍ଟ ନିଶ୍ଚିତ କରନ୍ତୁ"
   },
   invalid_confirm: {
     en: "Please enter 1 (Yes) or 2 (No).",

@@ -2,9 +2,10 @@ const express = require('express');
 const bodyParser = require('body-parser');
 const crypto = require('crypto');
 const dotenv = require('dotenv');
+const path = require('path');
 const { processIncomingMessage } = require('./chatbot');
 
-dotenv.config();
+dotenv.config({ path: path.join(__dirname, '.env') });
 const app = express();
 
 // IMPORTANT: For signature validation you must capture raw body.

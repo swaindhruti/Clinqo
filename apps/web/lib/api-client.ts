@@ -1,6 +1,10 @@
 import { getAuthToken } from "@/lib/auth";
 
-const API_BASE_URL = process.env.NEXT_PUBLIC_API_URL || "http://localhost:8000/api/v1";
+const RAW_API_BASE_URL = process.env.NEXT_PUBLIC_API_URL || "http://localhost:8000/api/v1";
+const API_BASE_URL = (() => {
+  const trimmed = RAW_API_BASE_URL.replace(/\/$/, "");
+  return trimmed.endsWith("/api/v1") ? trimmed : `${trimmed}/api/v1`;
+})();
 
 export class APIError extends Error {
   constructor(public status: number, message: string, public details?: unknown) {

@@ -3,7 +3,7 @@ from fastapi.responses import JSONResponse
 from fastapi.exceptions import RequestValidationError
 from fastapi.middleware.cors import CORSMiddleware
 from contextlib import asynccontextmanager
-from app.api.v1.routers import patients, doctors, appointments, checkins, websockets, clinics, auth, procedures
+from app.api.v1.routers import patients, doctors, appointments, checkins, websockets, clinics, auth, procedures, queries
 from app.core.config import get_settings
 from app.core.logging import get_logger
 

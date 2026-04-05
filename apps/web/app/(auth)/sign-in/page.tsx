@@ -54,11 +54,13 @@ export default function SignInPage() {
         password,
       });
 
+      setAuthSession(token);
       const user = await apiClient.get<User>("/auth/me");
       setAuthSession(token, user);
       setStoredUser(user);
       router.replace(getDashboardPathForRole(user.role));
     } catch (err) {
+      clearAuthSession();
       if (err instanceof APIError) {
         setError(err.message || "Unable to sign in.");
       } else {

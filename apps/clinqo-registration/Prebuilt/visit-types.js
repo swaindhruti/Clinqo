@@ -11,8 +11,7 @@ const VISIT_TYPES = [
 
 const DETAIL_QUESTIONS = {
   CONSULTATION: [
-    { key: 'concern', prompt: { en: "Please describe your concern:", hi: "कृपया अपनी समस्या बताएं:", od: "ଦୟାକରି ଆପଣଙ୍କ ସମସ୍ୟା ବର୍ଣ୍ଣନା କରନ୍ତୁ:" } },
-    { key: 'photo', isMedia: true, prompt: { en: "Please share a photo of the affected area (optional — type 'skip' to continue):", hi: "कृपया प्रभावित क्षेत्र की फोटो भेजें (वैकल्पिक — 'skip' लिखें):", od: "ଦୟାକରି ପ୍ରଭାବିତ ଅଞ୍ଚଳର ଫଟୋ ପଠାନ୍ତୁ (ବୈକଳ୍ପିକ — 'skip' ଲେଖନ୍ତୁ):" } }
+    { key: 'concern', prompt: { en: "Please describe your concern:", hi: "कृपया अपनी समस्या बताएं:", od: "ଦୟାକରି ଆପଣଙ୍କ ସମସ୍ୟା ବର୍ଣ୍ଣନା କରନ୍ତୁ:" } }
   ],
   PROCEDURE: [
     { key: 'concern', prompt: { en: "Please describe your concern:", hi: "कृपया अपनी समस्या बताएं:", od: "ଦୟାକରି ଆପଣଙ୍କ ସମସ୍ୟା ବର୍ଣ୍ଣନା କରନ୍ତୁ:" } },

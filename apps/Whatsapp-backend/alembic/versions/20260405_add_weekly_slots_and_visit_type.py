@@ -1,33 +1,43 @@
 """add weekly slots and appointment visit type
 
-Revision ID: 20260405_add_weekly_slots_and_visit_type
-Revises: 20260405_add_appointment_intake_data
+Revision ID: a20260405_slots
+Revises: a20260405_intake
 Create Date: 2026-04-05 00:30:00.000000
 """
 
 from alembic import op
 import sqlalchemy as sa
+from sqlalchemy.dialects import postgresql
 
 
 # revision identifiers, used by Alembic.
-revision = "20260405_add_weekly_slots_and_visit_type"
-down_revision = "20260405_add_appointment_intake_data"
+revision = "a20260405_slots"
+down_revision = "a20260405_intake"
 branch_labels = None
 depends_on = None
 
 
-visit_type_enum = sa.Enum("CONSULTATION", "PROCEDURE", name="visittype")
+visit_type_enum = postgresql.ENUM("CONSULTATION", "PROCEDURE", name="visittype", create_type=False)
 
 
 def upgrade() -> None:
-    visit_type_enum.create(op.get_bind(), checkfirst=True)
+    op.execute(
+        """
+        DO $$
+        BEGIN
+            CREATE TYPE visittype AS ENUM ('CONSULTATION', 'PROCEDURE');
+        EXCEPTION
+            WHEN duplicate_object THEN NULL;
+        END $$;
+        """
+    )
 
     op.add_column("appointments", sa.Column("slot_label", sa.String(length=30), nullable=True))
     op.add_column(
         "appointments",
         sa.Column(
             "visit_type",
-            sa.Enum("CONSULTATION", "PROCEDURE", name="visittype"),
+            postgresql.ENUM("CONSULTATION", "PROCEDURE", name="visittype", create_type=False),
             nullable=False,
             server_default="CONSULTATION",
         ),
@@ -51,7 +61,7 @@ def upgrade() -> None:
         sa.Column("max_patients", sa.Integer(), nullable=False),
         sa.Column(
             "visit_type",
-            sa.Enum("CONSULTATION", "PROCEDURE", name="visittype"),
+            postgresql.ENUM("CONSULTATION", "PROCEDURE", name="visittype", create_type=False),
             nullable=False,
             server_default="CONSULTATION",
         ),
@@ -87,4 +97,4 @@ def downgrade() -> None:
     op.drop_column("appointments", "visit_type")
     op.drop_column("appointments", "slot_label")
 
-    visit_type_enum.drop(op.get_bind(), checkfirst=True)
+    # Keep enum type to avoid breaking existing columns that may still depend on it.

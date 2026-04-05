@@ -1,7 +1,7 @@
 """add procedure bookings table
 
-Revision ID: 20260405_add_procedure_bookings
-Revises: 20260405_add_weekly_slots_and_visit_type
+Revision ID: a20260405_proc
+Revises: a20260405_slots
 Create Date: 2026-04-05 01:10:00.000000
 """
 
@@ -10,8 +10,8 @@ import sqlalchemy as sa
 
 
 # revision identifiers, used by Alembic.
-revision = "20260405_add_procedure_bookings"
-down_revision = "20260405_add_weekly_slots_and_visit_type"
+revision = "a20260405_proc"
+down_revision = "a20260405_slots"
 branch_labels = None
 depends_on = None
 

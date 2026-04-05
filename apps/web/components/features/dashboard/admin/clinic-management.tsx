@@ -26,79 +26,7 @@ export type Clinic = {
   appliedDate: string;
 };
 
-// Dummy Data
-const approvedClinics: Clinic[] = [
-  {
-    id: "CLN-8021",
-    name: "MetroHealth Clinic",
-    location: "New York, NY",
-    email: "admin@metrohealth.com",
-    status: "approved",
-    appliedDate: "Oct 12, 2023",
-  },
-  {
-    id: "CLN-8022",
-    name: "Westside Dental",
-    location: "San Francisco, CA",
-    email: "contact@westsidedental.com",
-    status: "approved",
-    appliedDate: "Nov 05, 2023",
-  },
-  {
-    id: "CLN-8025",
-    name: "Sunrise Care Hub",
-    location: "Austin, TX",
-    email: "info@sunrisecare.org",
-    status: "approved",
-    appliedDate: "Jan 18, 2024",
-  },
-  {
-    id: "CLN-8041",
-    name: "Pioneer Orthopedics",
-    location: "Denver, CO",
-    email: "hello@pioneerortho.com",
-    status: "approved",
-    appliedDate: "Feb 22, 2024",
-  },
-];
-
-const applicantClinics: Clinic[] = [
-  {
-    id: "CLN-9102",
-    name: "Valley Family Medicine",
-    location: "Phoenix, AZ",
-    email: "apply@valleyfam.com",
-    status: "applicant",
-    appliedDate: "Today",
-  },
-  {
-    id: "CLN-9104",
-    name: "ClearVision Eye Care",
-    location: "Seattle, WA",
-    email: "hello@clearvision.com",
-    status: "applicant",
-    appliedDate: "Yesterday",
-  },
-  {
-    id: "CLN-9107",
-    name: "Peak Performance Physio",
-    location: "Portland, OR",
-    email: "contact@peakphysio.com",
-    status: "applicant",
-    appliedDate: "3 days ago",
-  },
-];
-
-const rejectedClinics: Clinic[] = [
-  {
-    id: "CLN-7052",
-    name: "Downtown Chiro",
-    location: "Chicago, IL",
-    email: "info@downtownchiro.com",
-    status: "rejected",
-    appliedDate: "Dec 14, 2023",
-  },
-];
+type VisitType = "consultation" | "procedure";
 
 type ClinicApi = {
   id: string;
@@ -106,6 +34,18 @@ type ClinicApi = {
   address?: string | null;
   phone?: string | null;
   specialty?: string | null;
+  created_at: string;
+};
+
+type ServiceCategoryApi = {
+  id: string;
+  clinic_id: string;
+  visit_type: VisitType;
+  name: string;
+  price?: string | null;
+  emoji?: string | null;
+  sort_order: number;
+  detail_questions?: string | null;
   created_at: string;
 };
 
@@ -194,10 +134,24 @@ export function ClinicManagement() {
   const [showForm, setShowForm] = useState(false);
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [form, setForm] = useState({ name: "", address: "", phone: "", specialty: "" });
+  const [selectedClinicId, setSelectedClinicId] = useState("");
+  const [isSavingService, setIsSavingService] = useState(false);
+  const [serviceForm, setServiceForm] = useState({
+    visitType: "consultation" as VisitType,
+    name: "",
+    price: "",
+    emoji: "",
+  });
 
   const { data: liveClinics } = useQuery({
     queryKey: ["admin-clinics"],
     queryFn: () => apiClient.get<ClinicApi[]>("/clinics"),
+  });
+
+  const { data: clinicServices } = useQuery({
+    queryKey: ["clinic-services", selectedClinicId],
+    queryFn: () => apiClient.get<ServiceCategoryApi[]>(`/clinics/${selectedClinicId}/services`),
+    enabled: Boolean(selectedClinicId),
   });
 
   const approvedFromApi: Clinic[] = (liveClinics || []).map((clinic) => ({
@@ -208,6 +162,9 @@ export function ClinicManagement() {
     status: "approved",
     appliedDate: formatDate(clinic.created_at),
   }));
+
+  const applicantClinics: Clinic[] = [];
+  const rejectedClinics: Clinic[] = [];
 
   const handleCreateClinic = async () => {
     setIsSubmitting(true);
@@ -225,6 +182,41 @@ export function ClinicManagement() {
       setIsSubmitting(false);
     }
   };
+
+  const handleCreateServiceCategory = async () => {
+    if (!selectedClinicId || !serviceForm.name.trim()) return;
+
+    setIsSavingService(true);
+    try {
+      await apiClient.post(`/clinics/${selectedClinicId}/services`, {
+        clinic_id: selectedClinicId,
+        visit_type: serviceForm.visitType,
+        name: serviceForm.name.trim(),
+        price: serviceForm.price.trim() || null,
+        emoji: serviceForm.emoji.trim() || null,
+        sort_order: 0,
+        detail_questions: null,
+      });
+
+      setServiceForm({
+        visitType: serviceForm.visitType,
+        name: "",
+        price: "",
+        emoji: "",
+      });
+
+      await queryClient.invalidateQueries({ queryKey: ["clinic-services", selectedClinicId] });
+    } finally {
+      setIsSavingService(false);
+    }
+  };
+
+  const consultationServices = (clinicServices || []).filter(
+    (service) => service.visit_type === "consultation",
+  );
+  const procedureServices = (clinicServices || []).filter(
+    (service) => service.visit_type === "procedure",
+  );
 
   return (
     <div className="flex flex-col gap-6 animate-in fade-in duration-500">
@@ -258,13 +250,121 @@ export function ClinicManagement() {
         </div>
       ) : null}
 
+      <div className="rounded-xl border border-neutral-200 bg-white p-4 shadow-sm">
+        <h3 className="text-base font-semibold text-neutral-900 mb-3">
+          Clinic Service Types (Bot Flow)
+        </h3>
+        <p className="text-sm text-neutral-500 mb-4">
+          Add consultation and procedure options that appear in WhatsApp booking.
+        </p>
+
+        <div className="grid gap-3 md:grid-cols-5">
+          <select
+            className="rounded-lg border border-neutral-200 px-3 py-2 text-sm"
+            value={selectedClinicId}
+            onChange={(e) => setSelectedClinicId(e.target.value)}
+          >
+            <option value="">Select clinic</option>
+            {(liveClinics || []).map((clinic) => (
+              <option key={clinic.id} value={clinic.id}>
+                {clinic.name}
+              </option>
+            ))}
+          </select>
+
+          <select
+            className="rounded-lg border border-neutral-200 px-3 py-2 text-sm"
+            value={serviceForm.visitType}
+            onChange={(e) =>
+              setServiceForm((prev) => ({
+                ...prev,
+                visitType: e.target.value as VisitType,
+              }))
+            }
+          >
+            <option value="consultation">Consultation</option>
+            <option value="procedure">Procedure</option>
+          </select>
+
+          <input
+            className="rounded-lg border border-neutral-200 px-3 py-2 text-sm"
+            placeholder="Category name (e.g. Root Canal)"
+            value={serviceForm.name}
+            onChange={(e) => setServiceForm((prev) => ({ ...prev, name: e.target.value }))}
+          />
+
+          <input
+            className="rounded-lg border border-neutral-200 px-3 py-2 text-sm"
+            placeholder="Price (optional, e.g. ₹1200)"
+            value={serviceForm.price}
+            onChange={(e) => setServiceForm((prev) => ({ ...prev, price: e.target.value }))}
+          />
+
+          <div className="flex gap-2">
+            <input
+              className="w-full rounded-lg border border-neutral-200 px-3 py-2 text-sm"
+              placeholder="Emoji (optional)"
+              value={serviceForm.emoji}
+              onChange={(e) => setServiceForm((prev) => ({ ...prev, emoji: e.target.value }))}
+            />
+            <Button
+              type="button"
+              onClick={handleCreateServiceCategory}
+              disabled={!selectedClinicId || !serviceForm.name.trim() || isSavingService}
+            >
+              {isSavingService ? "Saving..." : "Add"}
+            </Button>
+          </div>
+        </div>
+
+        {selectedClinicId ? (
+          <div className="mt-4 grid gap-4 md:grid-cols-2">
+            <div className="rounded-lg border border-neutral-200 p-3">
+              <h4 className="text-sm font-semibold text-neutral-900 mb-2">Consultations</h4>
+              {consultationServices.length > 0 ? (
+                <ul className="space-y-1 text-sm text-neutral-700">
+                  {consultationServices.map((service) => (
+                    <li key={service.id}>
+                      {service.emoji ? `${service.emoji} ` : ""}
+                      {service.name}
+                      {service.price ? ` — ${service.price}` : ""}
+                    </li>
+                  ))}
+                </ul>
+              ) : (
+                <p className="text-sm text-neutral-500">No consultation categories yet.</p>
+              )}
+            </div>
+
+            <div className="rounded-lg border border-neutral-200 p-3">
+              <h4 className="text-sm font-semibold text-neutral-900 mb-2">Procedures</h4>
+              {procedureServices.length > 0 ? (
+                <ul className="space-y-1 text-sm text-neutral-700">
+                  {procedureServices.map((service) => (
+                    <li key={service.id}>
+                      {service.emoji ? `${service.emoji} ` : ""}
+                      {service.name}
+                      {service.price ? ` — ${service.price}` : ""}
+                    </li>
+                  ))}
+                </ul>
+              ) : (
+                <p className="text-sm text-neutral-500">No procedure categories yet.</p>
+              )}
+            </div>
+          </div>
+        ) : (
+          <p className="mt-4 text-sm text-neutral-500">Select a clinic to manage categories.</p>
+        )}
+      </div>
+
       <Tabs defaultValue="approved" className="w-full">
         <TabsList className="grid w-full max-w-[600px] grid-cols-3 mb-6">
           <TabsTrigger value="approved">Approved</TabsTrigger>
           <TabsTrigger value="applicants">
             Applicants
             <span className="ml-2 inline-flex items-center justify-center rounded-full bg-blue-100 px-2 py-0.5 text-xs font-semibold text-blue-700">
-              3
+              {applicantClinics.length}
             </span>
           </TabsTrigger>
           <TabsTrigger value="rejected">Rejected</TabsTrigger>
@@ -273,7 +373,7 @@ export function ClinicManagement() {
         <TabsContent value="approved" className="mt-0 outline-none">
           <DataTable
             columns={columns}
-            data={approvedFromApi.length > 0 ? approvedFromApi : approvedClinics}
+            data={approvedFromApi}
             searchKey="name"
             searchPlaceholder="Search by clinic name..."
             filterColumn="status"
@@ -286,33 +386,33 @@ export function ClinicManagement() {
         </TabsContent>
 
         <TabsContent value="applicants" className="mt-0 outline-none">
-          <DataTable
-            columns={columns}
-            data={applicantClinics}
-            searchKey="name"
-            searchPlaceholder="Search by clinic name..."
-            filterColumn="status"
-            filterOptions={[
-              { label: "Approved", value: "Approved" },
-              { label: "Pending", value: "Pending" },
-              { label: "Rejected", value: "Rejected" },
-            ]}
-          />
+          {applicantClinics.length > 0 ? (
+            <DataTable
+              columns={columns}
+              data={applicantClinics}
+              searchKey="name"
+              searchPlaceholder="Search by clinic name..."
+            />
+          ) : (
+            <div className="rounded-xl border border-dashed border-neutral-200 bg-white p-6 text-sm text-neutral-500">
+              No applicant clinics are available from the backend yet.
+            </div>
+          )}
         </TabsContent>
 
         <TabsContent value="rejected" className="mt-0 outline-none">
-          <DataTable
-            columns={columns}
-            data={rejectedClinics}
-            searchKey="name"
-            searchPlaceholder="Search by clinic name..."
-            filterColumn="status"
-            filterOptions={[
-              { label: "Approved", value: "Approved" },
-              { label: "Pending", value: "Pending" },
-              { label: "Rejected", value: "Rejected" },
-            ]}
-          />
+          {rejectedClinics.length > 0 ? (
+            <DataTable
+              columns={columns}
+              data={rejectedClinics}
+              searchKey="name"
+              searchPlaceholder="Search by clinic name..."
+            />
+          ) : (
+            <div className="rounded-xl border border-dashed border-neutral-200 bg-white p-6 text-sm text-neutral-500">
+              No rejected clinics are available from the backend yet.
+            </div>
+          )}
         </TabsContent>
       </Tabs>
     </div>
