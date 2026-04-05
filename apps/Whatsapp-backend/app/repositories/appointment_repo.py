@@ -2,10 +2,10 @@ from typing import Optional, List
 from uuid import UUID
 from datetime import date
 from sqlalchemy.ext.asyncio import AsyncSession
-from sqlalchemy import select, and_, update, text
+from sqlalchemy import select, and_, update, func
 from sqlalchemy.exc import IntegrityError
 from sqlalchemy.orm import joinedload
-from app.models import Appointment, DoctorDailyCapacity, AppointmentStatus
+from app.models import Appointment, DoctorDailyCapacity, AppointmentStatus, VisitType, DoctorMaster
 
 
 class AppointmentRepository:
@@ -27,7 +27,12 @@ class AppointmentRepository:
         )
         return result.scalar_one_or_none()
     
-    async def list_by_doctor_date(self, doctor_id: UUID, appointment_date: Optional[date] = None) -> List[Appointment]:
+    async def list_by_doctor_date(
+        self,
+        doctor_id: UUID,
+        appointment_date: Optional[date] = None,
+        visit_type: Optional[str] = None,
+    ) -> List[Appointment]:
         query = select(Appointment).options(
             joinedload(Appointment.patient),
             joinedload(Appointment.doctor)
@@ -39,21 +44,35 @@ class AppointmentRepository:
         )
         if appointment_date:
             query = query.where(Appointment.date == appointment_date)
+        if visit_type:
+            query = query.where(Appointment.visit_type == visit_type)
             
         result = await self.db.execute(query.order_by(Appointment.slot))
         return list(result.scalars().all())
 
-    async def list_all(self, appointment_date: Optional[date] = None, patient_id: Optional[UUID] = None) -> List[Appointment]:
+    async def list_all(
+        self,
+        appointment_date: Optional[date] = None,
+        patient_id: Optional[UUID] = None,
+        visit_type: Optional[str] = None,
+        clinic_id: Optional[UUID] = None,
+    ) -> List[Appointment]:
         query = select(Appointment).options(
             joinedload(Appointment.patient),
             joinedload(Appointment.doctor)
         ).where(
             Appointment.status != AppointmentStatus.CANCELLED
         )
+        if clinic_id:
+            query = query.join(DoctorMaster, Appointment.doctor_id == DoctorMaster.id).where(
+                DoctorMaster.clinic_id == clinic_id
+            )
         if appointment_date:
             query = query.where(Appointment.date == appointment_date)
         if patient_id:
             query = query.where(Appointment.patient_id == patient_id)
+        if visit_type:
+            query = query.where(Appointment.visit_type == visit_type)
             
         result = await self.db.execute(query.order_by(Appointment.date.desc(), Appointment.slot))
         return list(result.scalars().all())
@@ -85,8 +104,11 @@ class AppointmentRepository:
         appointment_date: date,
         patient_id: UUID,
         time_slot: Optional[int] = None,
+        slot_label: Optional[str] = None,
+        visit_type: str = VisitType.CONSULTATION,
         idempotency_key: Optional[str] = None,
-        check_in_code: Optional[str] = None
+        check_in_code: Optional[str] = None,
+        intake_data: Optional[str] = None,
     ) -> Appointment:
         """
         Atomically book a slot using capacity decrement approach.
@@ -120,9 +142,12 @@ class AppointmentRepository:
             date=appointment_date,
             slot=slot,
             time_slot=time_slot,
+            slot_label=slot_label,
+            visit_type=visit_type,
             status=AppointmentStatus.BOOKED,
             idempotency_key=idempotency_key,
             check_in_code=check_in_code
+            , intake_data=intake_data,
         )
         
         self.db.add(appointment)
@@ -130,6 +155,26 @@ class AppointmentRepository:
         await self.db.refresh(appointment)
         
         return appointment
+
+    async def count_booked_for_slot(
+        self,
+        doctor_id: UUID,
+        appointment_date: date,
+        slot_label: str,
+        visit_type: str,
+    ) -> int:
+        result = await self.db.execute(
+            select(func.count(Appointment.id)).where(
+                and_(
+                    Appointment.doctor_id == doctor_id,
+                    Appointment.date == appointment_date,
+                    Appointment.slot_label == slot_label,
+                    Appointment.visit_type == visit_type,
+                    Appointment.status != AppointmentStatus.CANCELLED,
+                )
+            )
+        )
+        return int(result.scalar_one() or 0)
     
     async def update_status(self, appointment_id: UUID, status: AppointmentStatus) -> Appointment:
         result = await self.db.execute(

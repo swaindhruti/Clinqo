@@ -57,6 +57,7 @@ async function createSession(waId) {
     // Doctor & scheduling (consultation only)
     doctor_id: '', doctor_name: '',
     selected_date: '', selected_slot: null,
+    selected_slot_label: null, selected_slot_index: null,
     // Cached lists
     cached_doctors: null, cached_dates: null,
     cached_slots: null, cached_sub_categories: null,
@@ -94,6 +95,8 @@ function resetBookingFields(session) {
   session.doctor_name = '';
   session.selected_date = '';
   session.selected_slot = null;
+  session.selected_slot_label = null;
+  session.selected_slot_index = null;
   session.cached_doctors = null;
   session.cached_dates = null;
   session.cached_slots = null;

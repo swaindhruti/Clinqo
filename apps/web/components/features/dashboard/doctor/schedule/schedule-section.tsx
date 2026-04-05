@@ -5,11 +5,12 @@ import { useQuery } from "@tanstack/react-query";
 import { apiClient } from "@/lib/api-client";
 import { format, addDays, startOfWeek } from "date-fns";
 import { DoctorAvailability } from "@/types/api";
-
-// For demo purposes, hardcoding a doctor UUID. In a real app this comes from auth context.
-const DEMO_DOCTOR_ID = "fe38be4f-d5f6-4d49-8366-bd235e43a86e";
+import { getStoredUser } from "@/lib/auth";
 
 export function ScheduleSection() {
+  const currentUser = getStoredUser();
+  const doctorId = currentUser?.doctor_id || "";
+
   // Fetch a 7-day view starting from the beginning of the current week (e.g., Sunday or Monday)
   const today = new Date();
   const weekStart = startOfWeek(today, { weekStartsOn: 1 }); // Start on Monday
@@ -42,12 +43,26 @@ export function ScheduleSection() {
     isLoading,
     error,
   } = useQuery({
-    queryKey: ["availability", DEMO_DOCTOR_ID, format(today, "yyyy-MM-dd")],
-    queryFn: () =>
-      apiClient.get<DoctorAvailability>(
-        `/doctors/${DEMO_DOCTOR_ID}/availability?date=${format(today, "yyyy-MM-dd")}`,
-      ),
+    queryKey: ["availability", doctorId, format(today, "yyyy-MM-dd")],
+    queryFn: () => {
+      if (!doctorId) {
+        throw new Error("Doctor profile is missing from the current session.");
+      }
+
+      return apiClient.get<DoctorAvailability>(
+        `/doctors/${doctorId}/availability?date=${format(today, "yyyy-MM-dd")}`,
+      );
+    },
+    enabled: Boolean(doctorId),
   });
+
+  if (!doctorId) {
+    return (
+      <div className="rounded-xl border border-amber-200 bg-amber-50 p-6 text-sm text-amber-800">
+        Doctor profile is not linked to this account.
+      </div>
+    );
+  }
 
   // Since we only have one date fetched optimally, we'll mock the rest of the week visually
   // but use the real data for 'Today'. In a real scenario, we'd need a batch endpoint.

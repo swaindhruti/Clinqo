@@ -14,6 +14,7 @@ export interface Doctor {
   name: string;
   code: string;
   specialty: string;
+  clinic_id?: string | null;
 }
 
 export interface DoctorAvailability {
@@ -30,6 +31,8 @@ export interface Appointment {
   date: string;
   slot: number;
   time_slot?: number;
+  slot_label?: string | null;
+  visit_type?: "consultation" | "procedure";
   status: string;
   created_at?: string;
   updated_at?: string;
@@ -40,6 +43,7 @@ export interface Appointment {
   patient_name?: string;
   doctor_name?: string;
   check_in_code?: string;
+  intake_data?: string | null;
 }
 
 export interface CheckIn {
@@ -49,8 +53,73 @@ export interface CheckIn {
   check_in_code?: string;
 }
 
+export interface AppointmentCompletionResponse {
+  completed_appointment: Appointment;
+  next_appointment?: Appointment | null;
+}
+
+export interface DoctorWeeklySlot {
+  id: string;
+  doctor_id: string;
+  clinic_id?: string | null;
+  weekday: number;
+  start_time: string;
+  end_time: string;
+  max_patients: number;
+  visit_type: "consultation" | "procedure";
+  is_active: boolean;
+  created_at: string;
+}
+
+export interface SlotAvailability {
+  slot_label: string;
+  max_patients: number;
+  booked_patients: number;
+  remaining: number;
+  visit_type: "consultation" | "procedure";
+}
+
+export interface DayAvailability {
+  date: string;
+  weekday: number;
+  slots: SlotAvailability[];
+}
+
+export interface ProcedureBooking {
+  id: string;
+  clinic_id: string;
+  patient_id: string;
+  sub_category?: string | null;
+  preferred_date: string;
+  preferred_slot?: string | null;
+  intake_data?: string | null;
+  status: string;
+  patient?: Patient;
+  created_at: string;
+  updated_at: string;
+}
+
 export interface APIErrorResponse {
   error: string;
   message: string;
   details?: Record<string, unknown>;
+}
+
+export type AuthRole = "admin" | "clinic" | "doctor";
+
+export interface User {
+  id: string;
+  email: string;
+  role: AuthRole;
+  clinic_id?: string | null;
+  doctor_id?: string | null;
+  is_active: boolean;
+  created_at: string;
+}
+
+export interface TokenResponse {
+  access_token: string;
+  token_type: string;
+  role: AuthRole;
+  user_id: string;
 }

@@ -2,14 +2,16 @@
 
 import { useState, useMemo } from "react";
 import { useSearchParams } from "next/navigation";
+import { useQueryClient } from "@tanstack/react-query";
 import { DatePickerFilter } from "./date-picker-filter";
 import { Search, Clock, Loader2, AlertCircle, QrCode } from "lucide-react";
 import { useQuery } from "@tanstack/react-query";
 import { apiClient } from "@/lib/api-client";
-import { Appointment } from "@/types/api";
+import { Appointment, ProcedureBooking } from "@/types/api";
 import { CheckInDialog } from "./check-in-dialog";
 import { Button } from "@/components/ui/button";
 import { format, isBefore, isAfter, startOfDay } from "date-fns";
+import { getStoredUser } from "@/lib/auth";
 
 type Tab = "today" | "past" | "upcoming";
 
@@ -27,8 +29,15 @@ type UiAppointment = {
   type: Tab;
 };
 
-export function AppointmentTabs() {
+export function AppointmentTabs({
+  visitType = "consultation",
+}: {
+  visitType?: "consultation" | "procedure";
+}) {
   const searchParams = useSearchParams();
+  const queryClient = useQueryClient();
+  const currentUser = getStoredUser();
+  const clinicId = currentUser?.clinic_id || "";
   const activeTab = (searchParams.get("view") || "upcoming") as Tab;
   const [filterDate, setFilterDate] = useState<Date | undefined>(undefined);
   const [searchQuery, setSearchQuery] = useState("");
@@ -49,12 +58,23 @@ export function AppointmentTabs() {
     data: rawAppointments,
     isLoading,
     error,
-  } = useQuery({
-    queryKey: ["clinic-appointments", "all-doctors", queryDate, activeTab],
+  } = useQuery<Appointment[] | ProcedureBooking[]>({
+    queryKey: ["clinic-appointments", clinicId || "all-doctors", queryDate, activeTab, visitType],
     queryFn: () => {
-      const url = queryDate
-        ? `/appointments?date=${queryDate}`
-        : `/appointments`;
+      if (visitType === "procedure") {
+        const queryParams = new URLSearchParams();
+        if (queryDate) queryParams.set("date", queryDate);
+        if (clinicId) queryParams.set("clinic_id", clinicId);
+        const url = `/procedures?${queryParams.toString()}`;
+        return apiClient.get<ProcedureBooking[]>(url);
+      }
+
+      const queryParams = new URLSearchParams();
+      if (queryDate) queryParams.set("date", queryDate);
+      if (clinicId) queryParams.set("clinic_id", clinicId);
+      queryParams.set("visit_type", visitType);
+
+      const url = `/appointments?${queryParams.toString()}`;
       return apiClient.get<Appointment[]>(url);
     },
   });
@@ -64,7 +84,9 @@ export function AppointmentTabs() {
     const today = startOfDay(new Date());
 
     return rawAppointments.map((app): UiAppointment => {
-      const appDate = startOfDay(new Date(app.date));
+      const normalized = app as Appointment & ProcedureBooking;
+      const recordDate = normalized.date || normalized.preferred_date;
+      const appDate = startOfDay(new Date(recordDate));
       let type: Tab = "today";
 
       if (isBefore(appDate, today)) {
@@ -76,17 +98,28 @@ export function AppointmentTabs() {
       return {
         id: app.id,
         patient:
-          app.patient_name || `Patient ${app.patient_id.substring(0, 6)}`,
-        time: `Slot ${app.slot}`,
-        date: app.date,
-        doctor: app.doctor_name || "Dr. Smith Sandbox",
-        category: "Consultation",
+          ("patient_name" in normalized && normalized.patient_name) ||
+          normalized.patient?.name ||
+          `Patient ${normalized.patient_id.substring(0, 6)}`,
+        time:
+          normalized.slot_label ||
+          normalized.preferred_slot ||
+          (`slot` in normalized ? `Slot ${normalized.slot}` : "Slot"),
+        date: recordDate,
+        doctor:
+          visitType === "procedure"
+            ? "Clinic"
+            : ("doctor_name" in normalized && normalized.doctor_name) || "Doctor",
+        category:
+          ("visit_type" in normalized && normalized.visit_type === "procedure") || visitType === "procedure"
+            ? "Procedure"
+            : "Consultation",
         status:
-          app.status === "booked"
+          normalized.status === "booked"
             ? type === "past"
               ? "Missed"
               : "Upcoming"
-            : app.status,
+            : normalized.status,
         type: type,
       };
     });
@@ -125,12 +158,12 @@ export function AppointmentTabs() {
         <div className="p-5 md:p-6 border-b border-neutral-100 bg-neutral-50/50 flex flex-col xl:flex-row xl:items-center justify-between gap-4">
           <div>
             <h3 className="text-lg font-bold text-neutral-900 capitalize">
-              {activeTab} Appointments
+              {activeTab} {visitType === "procedure" ? "Procedures" : "Appointments"}
             </h3>
             <p className="text-sm text-neutral-500 mt-1">
               {activeTab === "today"
                 ? "Manage today's ongoing schedule."
-                : `Review and filter ${activeTab} consultation records.`}
+                : `Review and filter ${activeTab} ${visitType} records.`}
             </p>
           </div>
 
@@ -155,7 +188,7 @@ export function AppointmentTabs() {
                 </span>
                 <DatePickerFilter date={filterDate} setDate={setFilterDate} />
               </div>
-            ) : (
+            ) : visitType === "consultation" ? (
               <Button 
                 onClick={() => setShowCheckIn(true)}
                 className="bg-blue-600 hover:bg-blue-700 text-white shadow-sm font-bold h-10 px-6 gap-2"
@@ -163,7 +196,7 @@ export function AppointmentTabs() {
                 <QrCode className="w-4 h-4" />
                 Check-in Patient
               </Button>
-            )}
+            ) : null}
           </div>
         </div>
 
@@ -172,8 +205,7 @@ export function AppointmentTabs() {
           open={showCheckIn} 
           onOpenChange={setShowCheckIn}
           onSuccess={() => {
-            // Refresh appointments list on successful check-in
-            window.location.reload(); // Simple refresh for now to update the table
+            queryClient.invalidateQueries({ queryKey: ["clinic-appointments"] });
           }}
         />
 

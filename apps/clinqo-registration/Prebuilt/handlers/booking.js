@@ -4,8 +4,8 @@
  */
 const { sendWhatsAppMessage } = require('../services/whatsapp');
 const {
-  fetchServiceCategories, fetchDoctors, fetchDoctorAvailability,
-  fetchDoctorAppointmentsForDate, createAppointment
+  fetchServiceCategories, fetchDoctors,
+  fetchDoctorSlotAvailability, createAppointment, createProcedureBooking
 } = require('../services/api');
 const { saveSession, clearUserData } = require('../services/session');
 const { getMessage, getDayName } = require('../i18n');
@@ -116,12 +116,26 @@ async function handleShowDoctors(waId, session, lang) {
 
 async function handleShowDates(waId, session, lang) {
   try {
-    const next7 = getNextNDays(7);
-    const availableDates = [];
-    for (const d of next7) {
-      const avail = await fetchDoctorAvailability(session.doctor_id, d.dateStr);
-      if (avail.is_present !== false) availableDates.push(d);
+    const visitType = session.visit_type?.toLowerCase() === 'procedure' ? 'procedure' : 'consultation';
+    let availableDates = [];
+
+    if (visitType === 'procedure') {
+      availableDates = getNextNDays(7).map((item) => ({
+        ...item,
+        slots: ALL_TIME_SLOTS.map((slot) => ({ slot_label: slot.label })),
+      }));
+    } else {
+      const availability = await fetchDoctorSlotAvailability(session.doctor_id, visitType, 7);
+      availableDates = availability.map((item) => {
+        const dateObj = new Date(item.date);
+        return {
+          dateStr: item.date,
+          dayIndex: dateObj.getDay(),
+          slots: item.slots || []
+        };
+      });
     }
+
     if (availableDates.length === 0) {
       await sendWhatsAppMessage(waId, getMessage(lang, 'no_dates'));
       session.state = 'SHOW_DOCTORS';
@@ -148,9 +162,9 @@ async function handleShowDates(waId, session, lang) {
 
 async function handleShowSlots(waId, session, lang) {
   try {
-    const booked = await fetchDoctorAppointmentsForDate(session.doctor_id, session.selected_date);
-    const bookedSlots = new Set(booked.map(a => a.time_slot).filter(s => s != null));
-    const available = ALL_TIME_SLOTS.filter(s => !bookedSlots.has(s.hour));
+    const dateEntry = (session.cached_dates || []).find((d) => d.dateStr === session.selected_date);
+    const available = dateEntry?.slots || [];
+
     if (available.length === 0) {
       await sendWhatsAppMessage(waId, getMessage(lang, 'no_slots'));
       session.state = 'SHOW_DATES';
@@ -160,7 +174,7 @@ async function handleShowSlots(waId, session, lang) {
     }
     let msg = getMessage(lang, 'slots_header');
     available.forEach((slot, idx) => {
-      msg += getMessage(lang, 'slots_item', { index: String(idx + 1), time: slot.label }) + '\n';
+      msg += getMessage(lang, 'slots_item', { index: String(idx + 1), time: slot.slot_label }) + '\n';
     });
     msg += getMessage(lang, 'pick_slot');
     session.cached_slots = available;
@@ -177,7 +191,7 @@ async function handleShowSlots(waId, session, lang) {
 
 async function sendConsultationConfirmation(waId, session, lang) {
   const concern = session.detail_answers?.concern || 'N/A';
-  const timeLabel = formatTimeSlot(session.selected_slot);
+  const timeLabel = session.selected_slot_label || formatTimeSlot(session.selected_slot);
   let msg = getMessage(lang, 'confirm_consultation_details', {
     name: session.name, clinic: session.clinic_name || 'N/A',
     sub_category: session.sub_category_name || 'N/A',
@@ -201,11 +215,54 @@ async function sendProcedureConfirmation(waId, session, lang) {
 
 async function handleBooking(waId, session, lang) {
   try {
+    const selectedSlot = session.cached_slots?.find((slot) => slot.slot_label === session.selected_slot_label)
+      || session.cached_slots?.[session.selected_slot_index || 0];
+
+    const visitType = session.visit_type?.toLowerCase() === 'procedure' ? 'procedure' : 'consultation';
+    const timeLabel = selectedSlot?.slot_label || formatTimeSlot(session.selected_slot);
+
+    if (visitType === 'procedure') {
+      await createProcedureBooking(
+        session.clinic_id,
+        session.patient_id,
+        session.selected_date,
+        timeLabel,
+        session.detail_answers || {},
+        session.sub_category_name || null,
+      );
+
+      const concern = session.detail_answers?.concern || 'N/A';
+      const details = getMessage(lang, 'procedure_confirm_details', {
+        name: session.name,
+        clinic: session.clinic_name || 'N/A',
+        sub_category: session.sub_category_name || 'N/A',
+        fee: session.fee || 'N/A',
+        concern,
+      });
+
+      await sendWhatsAppMessage(waId, getMessage(lang, 'booking_success', {
+        details: `${details}\n📅 Preferred Date: ${session.selected_date}\n🕒 Preferred Time: ${timeLabel}`,
+        check_in_code: 'N/A',
+        qr_url: 'N/A',
+      }));
+
+      session.state = 'COMPLETE';
+      await saveSession(waId, session);
+      await clearUserData(waId);
+      return;
+    }
+
     const appointment = await createAppointment(
       session.patient_id, session.doctor_id,
-      session.selected_date, session.selected_slot
+      session.selected_date,
+      session.selected_slot,
+      undefined,
+      {
+        slotLabel: selectedSlot?.slot_label || session.selected_slot_label,
+        visitType,
+        intakeData: session.detail_answers || {},
+      }
     );
-    const timeLabel = formatTimeSlot(session.selected_slot);
     const concern = session.detail_answers?.concern || 'N/A';
     const checkInCode = appointment.check_in_code || 'N/A';
     const qrUrl = `https://api.qrserver.com/v1/create-qr-code/?size=300x300&data=${checkInCode}`;

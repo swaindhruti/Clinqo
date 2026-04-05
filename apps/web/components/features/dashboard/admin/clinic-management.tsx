@@ -1,5 +1,8 @@
 "use client";
 
+import { useState } from "react";
+import { useQuery } from "@tanstack/react-query";
+import { useQueryClient } from "@tanstack/react-query";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Button } from "@/components/ui/button";
 import {
@@ -11,6 +14,7 @@ import {
 } from "lucide-react";
 import { DataTable } from "@/components/ui/data-table";
 import { ColumnDef } from "@tanstack/react-table";
+import { apiClient } from "@/lib/api-client";
 
 // Type Definition
 export type Clinic = {
@@ -96,6 +100,23 @@ const rejectedClinics: Clinic[] = [
   },
 ];
 
+type ClinicApi = {
+  id: string;
+  name: string;
+  address?: string | null;
+  phone?: string | null;
+  specialty?: string | null;
+  created_at: string;
+};
+
+function formatDate(value: string) {
+  return new Date(value).toLocaleDateString("en-US", {
+    month: "short",
+    day: "2-digit",
+    year: "numeric",
+  });
+}
+
 // Columns Definition
 export const columns: ColumnDef<Clinic>[] = [
   {
@@ -169,6 +190,42 @@ export const columns: ColumnDef<Clinic>[] = [
 ];
 
 export function ClinicManagement() {
+  const queryClient = useQueryClient();
+  const [showForm, setShowForm] = useState(false);
+  const [isSubmitting, setIsSubmitting] = useState(false);
+  const [form, setForm] = useState({ name: "", address: "", phone: "", specialty: "" });
+
+  const { data: liveClinics } = useQuery({
+    queryKey: ["admin-clinics"],
+    queryFn: () => apiClient.get<ClinicApi[]>("/clinics"),
+  });
+
+  const approvedFromApi: Clinic[] = (liveClinics || []).map((clinic) => ({
+    id: clinic.id,
+    name: clinic.name,
+    location: clinic.address || "—",
+    email: clinic.phone || "—",
+    status: "approved",
+    appliedDate: formatDate(clinic.created_at),
+  }));
+
+  const handleCreateClinic = async () => {
+    setIsSubmitting(true);
+    try {
+      await apiClient.post("/clinics", {
+        name: form.name,
+        address: form.address || null,
+        phone: form.phone || null,
+        specialty: form.specialty || null,
+      });
+      setShowForm(false);
+      setForm({ name: "", address: "", phone: "", specialty: "" });
+      await queryClient.invalidateQueries({ queryKey: ["admin-clinics"] });
+    } finally {
+      setIsSubmitting(false);
+    }
+  };
+
   return (
     <div className="flex flex-col gap-6 animate-in fade-in duration-500">
       <div className="flex items-center justify-between">
@@ -180,11 +237,26 @@ export function ClinicManagement() {
             Review applicant clinics and manage existing partners.
           </p>
         </div>
-        <Button className="flex items-center gap-2">
+        <Button className="flex items-center gap-2" type="button" onClick={() => setShowForm((value) => !value)}>
           <Plus className="h-4 w-4" />
           Add New Clinic
         </Button>
       </div>
+
+      {showForm ? (
+        <div className="rounded-xl border border-neutral-200 bg-white p-4 shadow-sm grid gap-3 md:grid-cols-2">
+          <input className="rounded-lg border border-neutral-200 px-3 py-2 text-sm" placeholder="Clinic name" value={form.name} onChange={(e) => setForm((p) => ({ ...p, name: e.target.value }))} />
+          <input className="rounded-lg border border-neutral-200 px-3 py-2 text-sm" placeholder="Address" value={form.address} onChange={(e) => setForm((p) => ({ ...p, address: e.target.value }))} />
+          <input className="rounded-lg border border-neutral-200 px-3 py-2 text-sm" placeholder="Phone" value={form.phone} onChange={(e) => setForm((p) => ({ ...p, phone: e.target.value }))} />
+          <input className="rounded-lg border border-neutral-200 px-3 py-2 text-sm" placeholder="Specialty" value={form.specialty} onChange={(e) => setForm((p) => ({ ...p, specialty: e.target.value }))} />
+          <div className="md:col-span-2 flex gap-2 justify-end pt-2">
+            <Button variant="outline" type="button" onClick={() => setShowForm(false)}>Cancel</Button>
+            <Button type="button" onClick={handleCreateClinic} disabled={isSubmitting}>
+              {isSubmitting ? "Saving..." : "Create Clinic"}
+            </Button>
+          </div>
+        </div>
+      ) : null}
 
       <Tabs defaultValue="approved" className="w-full">
         <TabsList className="grid w-full max-w-[600px] grid-cols-3 mb-6">
@@ -201,7 +273,7 @@ export function ClinicManagement() {
         <TabsContent value="approved" className="mt-0 outline-none">
           <DataTable
             columns={columns}
-            data={approvedClinics}
+            data={approvedFromApi.length > 0 ? approvedFromApi : approvedClinics}
             searchKey="name"
             searchPlaceholder="Search by clinic name..."
             filterColumn="status"

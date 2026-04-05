@@ -1,10 +1,10 @@
 from fastapi import APIRouter, Depends, HTTPException, status, Query
 from uuid import UUID
 from datetime import date
-from typing import List
+from typing import List, Optional
 from app.schemas import (
     DoctorCreate, DoctorResponse, AvailabilityUpsert, 
-    AvailabilityResponse, ErrorResponse
+    AvailabilityResponse, DoctorWeeklySlotCreate, DoctorWeeklySlotResponse, ErrorResponse
 )
 from app.services.doctor_service import DoctorService
 from app.api.v1.deps import get_doctor_service, require_clinic_or_admin
@@ -159,3 +159,63 @@ async def get_availability(
         }
     
     return availability
+
+
+@router.post(
+    "/{doctor_id}/weekly-slots",
+    response_model=DoctorWeeklySlotResponse,
+    status_code=status.HTTP_201_CREATED,
+    responses={404: {"model": ErrorResponse}},
+)
+async def create_weekly_slot(
+    doctor_id: UUID,
+    slot_data: DoctorWeeklySlotCreate,
+    service: DoctorService = Depends(get_doctor_service),
+    _auth=Depends(require_clinic_or_admin),
+):
+    try:
+        slot = await service.create_weekly_slot(doctor_id, slot_data.model_dump())
+        return slot
+    except ValueError as e:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail={"error": "NotFound", "message": str(e)},
+        )
+
+
+@router.get(
+    "/{doctor_id}/weekly-slots",
+    response_model=List[DoctorWeeklySlotResponse],
+)
+async def list_weekly_slots(
+    doctor_id: UUID,
+    visit_type: Optional[str] = Query(None, description="consultation or procedure"),
+    clinic_id: Optional[UUID] = Query(None, description="Filter by clinic ID"),
+    weekday: Optional[int] = Query(None, ge=0, le=6, description="Monday=0 ... Sunday=6"),
+    service: DoctorService = Depends(get_doctor_service),
+):
+    return await service.list_weekly_slots(
+        doctor_id=doctor_id,
+        visit_type=visit_type,
+        clinic_id=clinic_id,
+        weekday=weekday,
+    )
+
+
+@router.delete(
+    "/{doctor_id}/weekly-slots/{slot_id}",
+    status_code=status.HTTP_204_NO_CONTENT,
+    responses={404: {"model": ErrorResponse}},
+)
+async def delete_weekly_slot(
+    doctor_id: UUID,
+    slot_id: UUID,
+    service: DoctorService = Depends(get_doctor_service),
+    _auth=Depends(require_clinic_or_admin),
+):
+    deleted = await service.delete_weekly_slot(doctor_id, slot_id)
+    if not deleted:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail={"error": "NotFound", "message": "Weekly slot not found"},
+        )

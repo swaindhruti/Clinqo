@@ -14,7 +14,9 @@ export default async function ClinicDashboard({ searchParams }: PageProps) {
   // Determine which component to render based on the tab
   let ContentComponent = <OverviewSection />;
   if (tab === "appointments") {
-    ContentComponent = <AppointmentsManagement />;
+    ContentComponent = <AppointmentsManagement visitType="consultation" />;
+  } else if (tab === "procedures") {
+    ContentComponent = <AppointmentsManagement visitType="procedure" />;
   } else if (tab === "settings") {
     ContentComponent = <SettingsSection />;
   }

@@ -3,7 +3,7 @@ from fastapi.responses import JSONResponse
 from fastapi.exceptions import RequestValidationError
 from fastapi.middleware.cors import CORSMiddleware
 from contextlib import asynccontextmanager
-from app.api.v1.routers import patients, doctors, appointments, checkins, websockets, clinics, auth
+from app.api.v1.routers import patients, doctors, appointments, checkins, websockets, clinics, auth, procedures
 from app.core.config import get_settings
 from app.core.logging import get_logger
 
@@ -61,6 +61,8 @@ app.include_router(appointments.router, prefix="/api/v1")
 app.include_router(checkins.router, prefix="/api/v1")
 app.include_router(websockets.router, prefix="/api/v1")
 app.include_router(clinics.router, prefix="/api/v1")
+app.include_router(queries.router, prefix="/api/v1")
+app.include_router(procedures.router, prefix="/api/v1")
 
 
 if __name__ == "__main__":

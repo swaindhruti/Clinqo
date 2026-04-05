@@ -9,11 +9,9 @@ import { useQuery } from "@tanstack/react-query";
 import { apiClient } from "@/lib/api-client";
 import { format } from "date-fns";
 import { Appointment } from "@/types/api";
+import { getStoredUser } from "@/lib/auth";
 
 type Tab = "today" | "past" | "upcoming";
-
-// For demo purposes, hardcoding a doctor UUID. In a real app this comes from auth context.
-const DEMO_DOCTOR_ID = "fe38be4f-d5f6-4d49-8366-bd235e43a86e";
 
 export function AppointmentsSection() {
   const searchParams = useSearchParams();
@@ -21,6 +19,8 @@ export function AppointmentsSection() {
   const activeTab = (searchParams.get("view") || "upcoming") as Tab;
   const [filterDate, setFilterDate] = useState<Date | undefined>(undefined);
   const [searchQuery, setSearchQuery] = useState("");
+  const currentUser = getStoredUser();
+  const doctorId = currentUser?.doctor_id || "";
 
   const queryDate =
     activeTab === "today"
@@ -39,14 +39,27 @@ export function AppointmentsSection() {
     isLoading,
     error,
   } = useQuery({
-    queryKey: ["appointments", DEMO_DOCTOR_ID, queryDate, activeTab],
+    queryKey: ["appointments", doctorId, queryDate, activeTab],
     queryFn: () => {
+      if (!doctorId) {
+        throw new Error("Doctor profile is missing from the current session.");
+      }
+
       const url = queryDate
-        ? `/appointments/doctors/${DEMO_DOCTOR_ID}/appointments?date=${queryDate}`
-        : `/appointments/doctors/${DEMO_DOCTOR_ID}/appointments`;
+        ? `/appointments/doctors/${doctorId}/appointments?date=${queryDate}`
+        : `/appointments/doctors/${doctorId}/appointments`;
       return apiClient.get<Appointment[]>(url);
     },
+    enabled: Boolean(doctorId),
   });
+
+  if (!doctorId) {
+    return (
+      <div className="rounded-xl border border-amber-200 bg-amber-50 p-6 text-sm text-amber-800">
+        Doctor profile is not linked to this account.
+      </div>
+    );
+  }
 
   // Transform raw API data to match the UI's expected format
   const mappedAppointments = (rawAppointments || []).map((app) => ({

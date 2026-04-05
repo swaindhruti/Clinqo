@@ -2,7 +2,7 @@ from typing import Optional, List
 from uuid import UUID
 from datetime import date
 from app.repositories.doctor_repo import DoctorRepository
-from app.models import DoctorMaster, DoctorDailyAvailability
+from app.models import DoctorMaster, DoctorDailyAvailability, DoctorWeeklySlot
 from app.core.logging import get_logger
 
 logger = get_logger(__name__)
@@ -69,3 +69,32 @@ class DoctorService:
             })
         
         return result
+
+    async def create_weekly_slot(self, doctor_id: UUID, slot_data: dict) -> DoctorWeeklySlot:
+        doctor = await self.repo.get_by_id(doctor_id)
+        if not doctor:
+            raise ValueError(f"Doctor {doctor_id} not found")
+
+        if slot_data["start_time"] >= slot_data["end_time"]:
+            raise ValueError("start_time must be earlier than end_time")
+
+        slot_data["doctor_id"] = doctor_id
+        slot = await self.repo.create_weekly_slot(slot_data)
+        return slot
+
+    async def list_weekly_slots(
+        self,
+        doctor_id: UUID,
+        visit_type: Optional[str] = None,
+        clinic_id: Optional[UUID] = None,
+        weekday: Optional[int] = None,
+    ) -> List[DoctorWeeklySlot]:
+        return await self.repo.list_weekly_slots(
+            doctor_id=doctor_id,
+            visit_type=visit_type,
+            clinic_id=clinic_id,
+            weekday=weekday,
+        )
+
+    async def delete_weekly_slot(self, doctor_id: UUID, slot_id: UUID) -> bool:
+        return await self.repo.delete_weekly_slot(doctor_id, slot_id)

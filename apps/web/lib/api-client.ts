@@ -1,3 +1,5 @@
+import { getAuthToken } from "@/lib/auth";
+
 const API_BASE_URL = process.env.NEXT_PUBLIC_API_URL || "http://localhost:8000/api/v1";
 
 export class APIError extends Error {
@@ -26,6 +28,19 @@ async function handleResponse<T>(response: Response): Promise<T> {
   return data as T;
 }
 
+function buildHeaders() {
+  const headers: HeadersInit = {
+    "Content-Type": "application/json",
+  };
+
+  const token = getAuthToken();
+  if (token) {
+    headers.Authorization = `Bearer ${token}`;
+  }
+
+  return headers;
+}
+
 export const apiClient = {
   get: async <T>(endpoint: string, params?: Record<string, string>): Promise<T> => {
     const url = new URL(`${API_BASE_URL}${endpoint}`);
@@ -37,9 +52,7 @@ export const apiClient = {
 
     const response = await fetch(url.toString(), {
       method: 'GET',
-      headers: {
-        'Content-Type': 'application/json',
-      },
+      headers: buildHeaders(),
     });
 
     return handleResponse<T>(response);
@@ -48,9 +61,7 @@ export const apiClient = {
   post: async <T>(endpoint: string, body: unknown): Promise<T> => {
     const response = await fetch(`${API_BASE_URL}${endpoint}`, {
       method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-      },
+      headers: buildHeaders(),
       body: JSON.stringify(body),
     });
 
@@ -60,9 +71,7 @@ export const apiClient = {
   put: async <T>(endpoint: string, body: unknown): Promise<T> => {
     const response = await fetch(`${API_BASE_URL}${endpoint}`, {
       method: 'PUT',
-      headers: {
-        'Content-Type': 'application/json',
-      },
+      headers: buildHeaders(),
       body: JSON.stringify(body),
     });
 
@@ -72,9 +81,7 @@ export const apiClient = {
   delete: async <T>(endpoint: string): Promise<T> => {
     const response = await fetch(`${API_BASE_URL}${endpoint}`, {
       method: 'DELETE',
-      headers: {
-        'Content-Type': 'application/json',
-      },
+      headers: buildHeaders(),
     });
 
     return handleResponse<T>(response);

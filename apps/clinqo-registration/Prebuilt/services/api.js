@@ -110,11 +110,44 @@ async function fetchDoctorAppointmentsForDate(doctorId, date) {
   }
 }
 
-async function createAppointment(patientId, doctorId, date, timeSlot, idempotencyKey) {
+async function fetchDoctorSlotAvailability(doctorId, visitType = 'consultation', days = 14) {
+  try {
+    const response = await axios.get(`${API_BASE_URL}/appointments/doctors/${doctorId}/availability`, {
+      params: { visit_type: visitType, days }, headers
+    });
+    return response.data || [];
+  } catch (error) {
+    console.error('❌ Error fetching slot availability:', error.response?.data || error.message);
+    return [];
+  }
+}
+
+async function createProcedureBooking(clinicId, patientId, preferredDate, preferredSlot, intakeData = {}, subCategory = null) {
+  try {
+    const response = await axios.post(`${API_BASE_URL}/procedures`, {
+      clinic_id: clinicId,
+      patient_id: patientId,
+      sub_category: subCategory,
+      preferred_date: preferredDate,
+      preferred_slot: preferredSlot,
+      intake_data: intakeData ? JSON.stringify(intakeData) : undefined,
+    }, { headers });
+    console.log(`✅ Procedure booking created — ID: ${response.data.id || 'N/A'}`);
+    return response.data;
+  } catch (error) {
+    console.error('❌ Error creating procedure booking:', error.response?.data || error.message);
+    throw error;
+  }
+}
+
+async function createAppointment(patientId, doctorId, date, timeSlot, idempotencyKey, options = {}) {
   try {
     const response = await axios.post(`${API_BASE_URL}/appointments`, {
       patient_id: patientId, doctor_id: doctorId,
       date, time_slot: timeSlot,
+      slot_label: options.slotLabel,
+      visit_type: options.visitType || 'consultation',
+      intake_data: options.intakeData ? JSON.stringify(options.intakeData) : undefined,
       idempotency_key: idempotencyKey || `${patientId}-${doctorId}-${date}-${Date.now()}`
     }, { headers });
     console.log(`✅ Appointment created — ID: ${response.data.id || 'N/A'}`);
@@ -146,6 +179,8 @@ module.exports = {
   fetchDoctors,
   fetchDoctorAvailability,
   fetchDoctorAppointmentsForDate,
+  fetchDoctorSlotAvailability,
   createAppointment,
+  createProcedureBooking,
   logGeneralQuery
 };

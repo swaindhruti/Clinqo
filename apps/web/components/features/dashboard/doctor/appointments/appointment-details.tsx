@@ -37,7 +37,12 @@ import { Button } from "@/components/ui/button";
 
 // API client and types
 import { apiClient } from "@/lib/api-client";
-import { Appointment, APIErrorResponse } from "@/types/api";
+import {
+  Appointment,
+  AppointmentCompletionResponse,
+  APIErrorResponse,
+} from "@/types/api";
+import { getStoredUser } from "@/lib/auth";
 
 export function AppointmentDetailsSection({
   appointmentId,
@@ -49,6 +54,9 @@ export function AppointmentDetailsSection({
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [history, setHistory] = useState<Appointment[]>([]);
+  const [isCompleting, setIsCompleting] = useState(false);
+  const currentUser = getStoredUser();
+  const doctorId = currentUser?.doctor_id || null;
 
   // State for dynamic medicine list
   const [medicines, setMedicines] = useState(() => [
@@ -102,6 +110,28 @@ export function AppointmentDetailsSection({
     );
   };
 
+  const handleCompleteAndNext = async () => {
+    setIsCompleting(true);
+    try {
+      const result = await apiClient.post<AppointmentCompletionResponse>(
+        `/appointments/${appointmentId}/complete`,
+        {},
+      );
+
+      if (result.next_appointment?.id) {
+        router.replace(`/doctor/appointments/${result.next_appointment.id}`);
+        return;
+      }
+
+      router.push("/doctor?tab=appointments&view=today");
+    } catch (err) {
+      const apiErr = err as APIErrorResponse;
+      setError(apiErr.message || "Failed to complete appointment.");
+    } finally {
+      setIsCompleting(false);
+    }
+  };
+
   if (isLoading) {
     return (
       <div className="flex items-center justify-center h-full min-h-[400px]">
@@ -122,6 +152,15 @@ export function AppointmentDetailsSection({
 
   const patient = appointment.patient;
   const formattedDateTime = appointment.date + (appointment.time_slot ? `, ${appointment.time_slot}:00` : "");
+  let intakeDetails: Record<string, unknown> | null = null;
+
+  if (appointment.intake_data) {
+    try {
+      intakeDetails = JSON.parse(appointment.intake_data) as Record<string, unknown>;
+    } catch {
+      intakeDetails = { raw: appointment.intake_data };
+    }
+  }
 
   return (
     <div className="flex flex-col gap-4 animate-in fade-in duration-300 w-full h-full min-h-[calc(100vh-100px)]">
@@ -136,11 +175,12 @@ export function AppointmentDetailsSection({
         </button>
 
         <button
-          onClick={() => router.push("/doctor?tab=appointments")}
-          className="flex items-center gap-2 bg-blue-600 hover:bg-blue-700 text-white px-5 py-2.5 rounded-lg text-sm font-bold shadow-sm transition-colors"
+          onClick={handleCompleteAndNext}
+          disabled={isCompleting}
+          className="flex items-center gap-2 bg-blue-600 hover:bg-blue-700 disabled:opacity-70 disabled:cursor-not-allowed text-white px-5 py-2.5 rounded-lg text-sm font-bold shadow-sm transition-colors"
         >
           <CheckCircle2 className="w-4 h-4" />
-          Complete
+          {isCompleting ? "Completing..." : "Complete & Next"}
         </button>
       </div>
 
@@ -155,7 +195,7 @@ export function AppointmentDetailsSection({
               </h2>
               <div className="flex items-center gap-2 mt-2">
                 <span className="bg-blue-50 text-blue-700 border border-blue-200 px-2.5 py-0.5 rounded-full text-[10px] font-bold uppercase tracking-wider">
-                  {"General"}
+                  {appointment.status}
                 </span>
                 <span className="text-xs font-semibold text-neutral-500">
                   ID: #{appointmentId.slice(0, 8)}
@@ -193,6 +233,18 @@ export function AppointmentDetailsSection({
                   <span className="text-neutral-500 font-medium">Contact</span>
                   <span className="text-neutral-900 font-bold">
                     {patient?.phone || "N/A"}
+                  </span>
+                </li>
+                <li className="flex justify-between items-center text-xs">
+                  <span className="text-neutral-500 font-medium">Doctor</span>
+                  <span className="text-neutral-900 font-bold">
+                    {doctorId ? doctorId.slice(0, 8) : "N/A"}
+                  </span>
+                </li>
+                <li className="flex justify-between items-center text-xs">
+                  <span className="text-neutral-500 font-medium">Check-in Code</span>
+                  <span className="text-neutral-900 font-bold">
+                    {appointment.check_in_code || "N/A"}
                   </span>
                 </li>
               </ul>
@@ -405,6 +457,19 @@ export function AppointmentDetailsSection({
                 consultation.
               </p>
             </div>
+
+            {intakeDetails ? (
+              <div className="px-4 md:px-6 pb-6">
+                <div className="rounded-xl border border-blue-100 bg-blue-50/40 p-4">
+                  <h4 className="text-sm font-bold text-neutral-900">
+                    WhatsApp booking details
+                  </h4>
+                  <pre className="mt-3 overflow-x-auto rounded-lg bg-white p-3 text-xs text-neutral-700 border border-blue-100">
+                    {JSON.stringify(intakeDetails, null, 2)}
+                  </pre>
+                </div>
+              </div>
+            ) : null}
           </div>
         </div>
       </div>

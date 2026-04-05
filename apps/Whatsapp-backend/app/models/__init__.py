@@ -30,6 +30,11 @@ class UserRole(str, enum.Enum):
     DOCTOR = "doctor"
 
 
+class VisitType(str, enum.Enum):
+    CONSULTATION = "consultation"
+    PROCEDURE = "procedure"
+
+
 class Patient(Base):
     __tablename__ = "patients"
     
@@ -88,8 +93,40 @@ class DoctorMaster(Base):
     clinic: Mapped[Optional["Clinic"]] = relationship("Clinic", back_populates="doctors")
     availabilities: Mapped[list["DoctorDailyAvailability"]] = relationship("DoctorDailyAvailability", back_populates="doctor")
     capacities: Mapped[list["DoctorDailyCapacity"]] = relationship("DoctorDailyCapacity", back_populates="doctor")
+    weekly_slots: Mapped[list["DoctorWeeklySlot"]] = relationship("DoctorWeeklySlot", back_populates="doctor")
     appointments: Mapped[list["Appointment"]] = relationship("Appointment", back_populates="doctor")
     queue_entries: Mapped[list["QueueEntry"]] = relationship("QueueEntry", back_populates="doctor")
+
+
+class DoctorWeeklySlot(Base):
+    __tablename__ = "doctor_weekly_slots"
+
+    id: Mapped[uuid.UUID] = mapped_column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
+    doctor_id: Mapped[uuid.UUID] = mapped_column(UUID(as_uuid=True), ForeignKey("doctor_masters.id"), nullable=False)
+    clinic_id: Mapped[Optional[uuid.UUID]] = mapped_column(UUID(as_uuid=True), ForeignKey("clinics.id"), nullable=True)
+    weekday: Mapped[int] = mapped_column(Integer, nullable=False)  # Monday=0 ... Sunday=6
+    start_time: Mapped[str] = mapped_column(String(5), nullable=False)  # HH:MM
+    end_time: Mapped[str] = mapped_column(String(5), nullable=False)  # HH:MM
+    max_patients: Mapped[int] = mapped_column(Integer, nullable=False, default=1)
+    visit_type: Mapped[VisitType] = mapped_column(SQLEnum(VisitType), nullable=False, default=VisitType.CONSULTATION)
+    is_active: Mapped[bool] = mapped_column(Boolean, nullable=False, default=True)
+    created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=datetime.utcnow)
+
+    doctor: Mapped["DoctorMaster"] = relationship("DoctorMaster", back_populates="weekly_slots")
+    clinic: Mapped[Optional["Clinic"]] = relationship("Clinic")
+
+    __table_args__ = (
+        UniqueConstraint(
+            "doctor_id",
+            "clinic_id",
+            "weekday",
+            "start_time",
+            "end_time",
+            "visit_type",
+            name="uq_doctor_weekly_slot",
+        ),
+        Index("ix_doctor_weekly_slots_lookup", "doctor_id", "weekday", "visit_type"),
+    )
 
 
 class DoctorDailyAvailability(Base):
@@ -137,9 +174,12 @@ class Appointment(Base):
     date: Mapped[dt] = mapped_column(Date, nullable=False)
     slot: Mapped[int] = mapped_column(Integer, nullable=False)
     time_slot: Mapped[Optional[int]] = mapped_column(Integer, nullable=True)
+    slot_label: Mapped[Optional[str]] = mapped_column(String(30), nullable=True)
+    visit_type: Mapped[VisitType] = mapped_column(SQLEnum(VisitType), nullable=False, default=VisitType.CONSULTATION)
     status: Mapped[AppointmentStatus] = mapped_column(SQLEnum(AppointmentStatus), nullable=False, default=AppointmentStatus.BOOKED)
     check_in_code: Mapped[Optional[str]] = mapped_column(String(10), unique=True, index=True, nullable=True)
     idempotency_key: Mapped[Optional[str]] = mapped_column(String(255), nullable=True, index=True)
+    intake_data: Mapped[Optional[str]] = mapped_column(Text, nullable=True)
     created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=datetime.utcnow)
     updated_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=datetime.utcnow, onupdate=datetime.utcnow)
     
@@ -150,6 +190,7 @@ class Appointment(Base):
     __table_args__ = (
         UniqueConstraint("doctor_id", "date", "slot", name="uq_doctor_date_slot"),
         Index("ix_appointment_date", "doctor_id", "date"),
+        Index("ix_appointment_slot_label", "doctor_id", "date", "slot_label", "visit_type"),
         Index("ix_appointment_idempotency", "idempotency_key"),
         Index("ix_appointment_check_in_code", "check_in_code"),
     )
@@ -189,3 +230,41 @@ class User(Base):
     
     clinic: Mapped[Optional["Clinic"]] = relationship("Clinic")
     doctor: Mapped[Optional["DoctorMaster"]] = relationship("DoctorMaster")
+
+
+class GeneralQuery(Base):
+    __tablename__ = "general_queries"
+    
+    id: Mapped[uuid.UUID] = mapped_column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
+    clinic_id: Mapped[uuid.UUID] = mapped_column(UUID(as_uuid=True), ForeignKey("clinics.id"), nullable=False)
+    patient_id: Mapped[Optional[uuid.UUID]] = mapped_column(UUID(as_uuid=True), ForeignKey("patients.id"), nullable=True)
+    patient_phone: Mapped[str] = mapped_column(String(20), nullable=False)
+    patient_name: Mapped[str] = mapped_column(String(200), nullable=False)
+    query_text: Mapped[str] = mapped_column(Text, nullable=False)
+    status: Mapped[str] = mapped_column(String(50), nullable=False, default="pending")
+    created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=datetime.utcnow)
+    
+    clinic: Mapped["Clinic"] = relationship("Clinic")
+    patient: Mapped[Optional["Patient"]] = relationship("Patient")
+
+
+class ProcedureBooking(Base):
+    __tablename__ = "procedure_bookings"
+
+    id: Mapped[uuid.UUID] = mapped_column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
+    clinic_id: Mapped[uuid.UUID] = mapped_column(UUID(as_uuid=True), ForeignKey("clinics.id"), nullable=False)
+    patient_id: Mapped[uuid.UUID] = mapped_column(UUID(as_uuid=True), ForeignKey("patients.id"), nullable=False)
+    sub_category: Mapped[Optional[str]] = mapped_column(String(200), nullable=True)
+    preferred_date: Mapped[dt] = mapped_column(Date, nullable=False)
+    preferred_slot: Mapped[Optional[str]] = mapped_column(String(30), nullable=True)
+    intake_data: Mapped[Optional[str]] = mapped_column(Text, nullable=True)
+    status: Mapped[str] = mapped_column(String(50), nullable=False, default="booked")
+    created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=datetime.utcnow)
+    updated_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=datetime.utcnow, onupdate=datetime.utcnow)
+
+    clinic: Mapped["Clinic"] = relationship("Clinic")
+    patient: Mapped["Patient"] = relationship("Patient")
+
+    __table_args__ = (
+        Index("ix_procedure_booking_clinic_date", "clinic_id", "preferred_date"),
+    )

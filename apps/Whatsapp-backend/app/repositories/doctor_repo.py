@@ -4,7 +4,7 @@ from datetime import date
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy import select, and_
 from sqlalchemy.orm import joinedload
-from app.models import DoctorMaster, DoctorDailyAvailability, DoctorDailyCapacity
+from app.models import DoctorMaster, DoctorDailyAvailability, DoctorDailyCapacity, DoctorWeeklySlot
 
 
 class DoctorRepository:
@@ -115,3 +115,74 @@ class DoctorRepository:
             )
         )
         return result.scalar_one_or_none()
+
+    async def create_weekly_slot(self, slot_data: dict) -> DoctorWeeklySlot:
+        slot = DoctorWeeklySlot(**slot_data)
+        self.db.add(slot)
+        await self.db.commit()
+        await self.db.refresh(slot)
+        return slot
+
+    async def list_weekly_slots(
+        self,
+        doctor_id: UUID,
+        visit_type: Optional[str] = None,
+        clinic_id: Optional[UUID] = None,
+        weekday: Optional[int] = None,
+    ) -> List[DoctorWeeklySlot]:
+        query = select(DoctorWeeklySlot).where(DoctorWeeklySlot.doctor_id == doctor_id)
+
+        if visit_type:
+            query = query.where(DoctorWeeklySlot.visit_type == visit_type)
+        if clinic_id:
+            query = query.where(DoctorWeeklySlot.clinic_id == clinic_id)
+        if weekday is not None:
+            query = query.where(DoctorWeeklySlot.weekday == weekday)
+
+        result = await self.db.execute(
+            query.order_by(DoctorWeeklySlot.weekday, DoctorWeeklySlot.start_time)
+        )
+        return list(result.scalars().all())
+
+    async def get_weekly_slot_by_window(
+        self,
+        doctor_id: UUID,
+        weekday: int,
+        slot_label: str,
+        visit_type: str,
+    ) -> Optional[DoctorWeeklySlot]:
+        if "-" not in slot_label:
+            return None
+
+        start_time, end_time = [part.strip() for part in slot_label.split("-", 1)]
+
+        result = await self.db.execute(
+            select(DoctorWeeklySlot).where(
+                and_(
+                    DoctorWeeklySlot.doctor_id == doctor_id,
+                    DoctorWeeklySlot.weekday == weekday,
+                    DoctorWeeklySlot.start_time == start_time,
+                    DoctorWeeklySlot.end_time == end_time,
+                    DoctorWeeklySlot.visit_type == visit_type,
+                    DoctorWeeklySlot.is_active.is_(True),
+                )
+            )
+        )
+        return result.scalar_one_or_none()
+
+    async def delete_weekly_slot(self, doctor_id: UUID, slot_id: UUID) -> bool:
+        result = await self.db.execute(
+            select(DoctorWeeklySlot).where(
+                and_(
+                    DoctorWeeklySlot.id == slot_id,
+                    DoctorWeeklySlot.doctor_id == doctor_id,
+                )
+            )
+        )
+        slot = result.scalar_one_or_none()
+        if not slot:
+            return False
+
+        await self.db.delete(slot)
+        await self.db.commit()
+        return True

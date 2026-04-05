@@ -100,6 +100,32 @@ class DoctorResponse(BaseModel):
         from_attributes = True
 
 
+class DoctorWeeklySlotCreate(BaseModel):
+    clinic_id: Optional[UUID] = None
+    weekday: int = Field(..., ge=0, le=6)
+    start_time: str = Field(..., pattern=r"^([01]\d|2[0-3]):[0-5]\d$")
+    end_time: str = Field(..., pattern=r"^([01]\d|2[0-3]):[0-5]\d$")
+    max_patients: int = Field(..., ge=1, le=500)
+    visit_type: str = Field(default="consultation", pattern='^(consultation|procedure)$')
+    is_active: bool = True
+
+
+class DoctorWeeklySlotResponse(BaseModel):
+    id: UUID
+    doctor_id: UUID
+    clinic_id: Optional[UUID] = None
+    weekday: int
+    start_time: str
+    end_time: str
+    max_patients: int
+    visit_type: str
+    is_active: bool
+    created_at: datetime
+
+    class Config:
+        from_attributes = True
+
+
 class AvailabilityUpsert(BaseModel):
     date: date
     is_present: bool
@@ -124,7 +150,10 @@ class AppointmentCreate(BaseModel):
     doctor_id: UUID
     date: date
     time_slot: Optional[int] = Field(None, ge=0, le=23, description="Time slot 0-23 (each representing 1 hour)")
+    slot_label: Optional[str] = Field(None, max_length=30, description="Slot window label e.g. 09:00-10:00")
+    visit_type: str = Field(default="consultation", pattern='^(consultation|procedure)$')
     idempotency_key: Optional[str] = Field(None, max_length=255)
+    intake_data: Optional[str] = None
 
 
 class AppointmentResponse(BaseModel):
@@ -134,17 +163,42 @@ class AppointmentResponse(BaseModel):
     date: date
     slot: int
     time_slot: Optional[int] = None
+    slot_label: Optional[str] = None
+    visit_type: str
     status: str
     patient: Optional[PatientResponse] = None
     doctor: Optional[DoctorResponse] = None
     patient_name: Optional[str] = None
     doctor_name: Optional[str] = None
     check_in_code: Optional[str] = None
+    intake_data: Optional[str] = None
     created_at: datetime
     updated_at: datetime
     
     class Config:
         from_attributes = True
+
+
+class AppointmentCompletionResponse(BaseModel):
+    completed_appointment: AppointmentResponse
+    next_appointment: Optional[AppointmentResponse] = None
+
+    class Config:
+        from_attributes = True
+
+
+class SlotAvailabilityResponse(BaseModel):
+    slot_label: str
+    max_patients: int
+    booked_patients: int
+    remaining: int
+    visit_type: str
+
+
+class DayAvailabilityResponse(BaseModel):
+    date: date
+    weekday: int
+    slots: list[SlotAvailabilityResponse]
 
 
 class CheckInRequest(BaseModel):
@@ -180,6 +234,56 @@ class ErrorResponse(BaseModel):
     error: str
     message: str
     details: Optional[dict] = None
+
+
+class QueryCreate(BaseModel):
+    clinic_id: UUID
+    patient_id: Optional[UUID] = None
+    patient_phone: str = Field(..., min_length=10, max_length=20)
+    patient_name: str = Field(..., min_length=1, max_length=200)
+    query_text: str
+    status: Optional[str] = "pending"
+
+
+class QueryResponse(BaseModel):
+    id: UUID
+    clinic_id: UUID
+    patient_id: Optional[UUID] = None
+    patient_phone: str
+    patient_name: str
+    query_text: str
+    status: str
+    created_at: datetime
+    
+    class Config:
+        from_attributes = True
+
+
+class ProcedureBookingCreate(BaseModel):
+    clinic_id: UUID
+    patient_id: UUID
+    sub_category: Optional[str] = Field(None, max_length=200)
+    preferred_date: date
+    preferred_slot: Optional[str] = Field(None, max_length=30)
+    intake_data: Optional[str] = None
+
+
+class ProcedureBookingResponse(BaseModel):
+    id: UUID
+    clinic_id: UUID
+    patient_id: UUID
+    sub_category: Optional[str] = None
+    preferred_date: date
+    preferred_slot: Optional[str] = None
+    intake_data: Optional[str] = None
+    status: str
+    patient: Optional[PatientResponse] = None
+    clinic: Optional[ClinicResponse] = None
+    created_at: datetime
+    updated_at: datetime
+
+    class Config:
+        from_attributes = True
 
 
 # ==================== Auth Schemas ====================

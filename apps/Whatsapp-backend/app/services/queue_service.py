@@ -79,3 +79,7 @@ class QueueService:
     async def get_queue_for_doctor(self, doctor_id: UUID, queue_date: date) -> List[QueueEntry]:
         """Get ordered queue for a doctor on a specific date"""
         return await self.queue_repo.list_by_doctor_date(doctor_id, queue_date)
+
+    async def mark_served(self, appointment_id: UUID) -> Optional[QueueEntry]:
+        """Mark a queue entry as served after consultation completion."""
+        return await self.queue_repo.update_status(appointment_id, QueueStatus.SERVED)

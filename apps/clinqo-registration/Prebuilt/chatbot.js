@@ -16,9 +16,9 @@ const { handlePatientCreation, handleRepeatPatientLookup } = require('./handlers
 const {
   handleShowSubCategories, sendDetailQuestion,
   handleShowDoctors, handleShowDates, handleShowSlots,
-  sendConsultationConfirmation, sendProcedureConfirmation, handleBooking
+  sendConsultationConfirmation, handleBooking
 } = require('./handlers/booking');
-const { handleProcedureSubmit, handleQueryLogged } = require('./handlers/query');
+const { handleQueryLogged } = require('./handlers/query');
 
 const { getMessage, getGender, getLanguageCode } = require('./i18n');
 const { VISIT_TYPES, getVisitTypeByIndex, getDetailQuestions } = require('./visit-types');
@@ -285,14 +285,14 @@ async function processIncomingMessage(messageData) {
           await saveSession(waId, session);
           if (session.detail_question_index < questions.length) {
             await sendDetailQuestion(waId, session, lang);
-          } else if (session.visit_type === 'CONSULTATION') {
-            session.state = 'SHOW_DOCTORS';
-            await saveSession(waId, session);
-            await handleShowDoctors(waId, session, lang);
           } else {
-            session.state = 'CONFIRM';
+            session.state = session.visit_type === 'PROCEDURE' ? 'SHOW_DATES' : 'SHOW_DOCTORS';
             await saveSession(waId, session);
-            await sendProcedureConfirmation(waId, session, lang);
+            if (session.visit_type === 'PROCEDURE') {
+              await handleShowDates(waId, session, lang);
+            } else {
+              await handleShowDoctors(waId, session, lang);
+            }
           }
         }
         return { status: 'detail_collected', index: qIdx };
@@ -344,10 +344,17 @@ async function processIncomingMessage(messageData) {
           await sendWhatsAppMessage(waId, getMessage(lang, 'invalid_selection'));
           return { status: 'invalid_input' };
         }
-        session.selected_slot = slots[choice - 1].hour;
+        const selected = slots[choice - 1];
+        session.selected_slot_index = choice - 1;
+        session.selected_slot_label = selected.slot_label || selected.label || null;
+        session.selected_slot = selected.hour ?? null;
         session.state = 'CONFIRM';
         await saveSession(waId, session);
-        await sendConsultationConfirmation(waId, session, lang);
+        if (session.visit_type === 'PROCEDURE') {
+          await sendProcedureConfirmation(waId, session, lang);
+        } else {
+          await sendConsultationConfirmation(waId, session, lang);
+        }
         return { status: 'slot_selected' };
       }
 
@@ -358,11 +365,7 @@ async function processIncomingMessage(messageData) {
           return { status: 'invalid_input' };
         }
         if (messageText === '1') {
-          if (session.visit_type === 'CONSULTATION') {
-            await handleBooking(waId, session, lang);
-          } else {
-            await handleProcedureSubmit(waId, session, lang);
-          }
+          await handleBooking(waId, session, lang);
         } else {
           resetBookingFields(session);
           session.state = 'VISIT_TYPE_SELECT';

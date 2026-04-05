@@ -12,6 +12,8 @@ from app.repositories.queue_repo import QueueRepository
 from app.repositories.clinic_repo import ClinicRepository
 from app.repositories.service_category_repo import ServiceCategoryRepository
 from app.repositories.user_repo import UserRepository
+from app.repositories.query_repo import QueryRepository
+from app.repositories.procedure_repo import ProcedureRepository
 from app.services.patient_service import PatientService
 from app.services.doctor_service import DoctorService
 from app.services.appointment_service import AppointmentService
@@ -19,6 +21,8 @@ from app.services.queue_service import QueueService
 from app.services.clinic_service import ClinicService
 from app.services.service_category_service import ServiceCategoryService
 from app.services.auth_service import AuthService
+from app.services.query_service import QueryService
+from app.services.procedure_service import ProcedureService
 from app.core.security import decode_access_token
 
 
@@ -52,6 +56,14 @@ def get_user_repo(db: AsyncSession = Depends(get_db)) -> UserRepository:
     return UserRepository(db)
 
 
+def get_query_repo(db: AsyncSession = Depends(get_db)) -> QueryRepository:
+    return QueryRepository(db)
+
+
+def get_procedure_repo(db: AsyncSession = Depends(get_db)) -> ProcedureRepository:
+    return ProcedureRepository(db)
+
+
 # ==================== Service Dependencies ====================
 
 def get_patient_service(
@@ -69,8 +81,9 @@ def get_doctor_service(
 def get_appointment_service(
     appointment_repo: AppointmentRepository = Depends(get_appointment_repo),
     doctor_repo: DoctorRepository = Depends(get_doctor_repo),
+    queue_repo: QueueRepository = Depends(get_queue_repo),
 ) -> AppointmentService:
-    return AppointmentService(appointment_repo, doctor_repo)
+    return AppointmentService(appointment_repo, doctor_repo, queue_repo)
 
 
 def get_queue_service(
@@ -96,6 +109,20 @@ def get_auth_service(
     user_repo: UserRepository = Depends(get_user_repo)
 ) -> AuthService:
     return AuthService(user_repo)
+
+
+def get_query_service(
+    repo: QueryRepository = Depends(get_query_repo)
+) -> QueryService:
+    return QueryService(repo)
+
+
+def get_procedure_service(
+    repo: ProcedureRepository = Depends(get_procedure_repo),
+    clinic_repo: ClinicRepository = Depends(get_clinic_repo),
+    patient_repo: PatientRepository = Depends(get_patient_repo),
+) -> ProcedureService:
+    return ProcedureService(repo, clinic_repo, patient_repo)
 
 
 # ==================== Auth Dependencies ====================

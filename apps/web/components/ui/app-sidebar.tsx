@@ -30,6 +30,7 @@ import {
   SidebarMenuSubItem,
   SidebarSeparator,
 } from "@/components/ui/sidebar";
+import { clearAuthSession } from "@/lib/auth";
 
 import {
   Collapsible,
@@ -64,6 +65,16 @@ const navigationConfig: NavigationConfig = {
         { title: "Today's", url: "/clinic?tab=appointments&view=today" },
         { title: "Upcoming", url: "/clinic?tab=appointments&view=upcoming" },
         { title: "Past", url: "/clinic?tab=appointments&view=past" },
+      ],
+    },
+    {
+      title: "Procedure Bookings",
+      url: "/clinic?tab=procedures",
+      icon: CalendarDays,
+      items: [
+        { title: "Today's", url: "/clinic?tab=procedures&view=today" },
+        { title: "Upcoming", url: "/clinic?tab=procedures&view=upcoming" },
+        { title: "Past", url: "/clinic?tab=procedures&view=past" },
       ],
     },
     {
@@ -251,8 +262,11 @@ export function AppSidebar() {
         <SidebarMenu>
           <SidebarMenuItem>
             <SidebarMenuButton
-              asChild
               className="text-red-600 hover:text-red-700 hover:bg-red-50"
+              onClick={() => {
+                clearAuthSession();
+              }}
+              asChild
             >
               <Link href="/sign-in">
                 <LogOut />

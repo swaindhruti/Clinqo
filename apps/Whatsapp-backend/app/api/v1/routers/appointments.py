@@ -3,9 +3,15 @@ from uuid import UUID
 from datetime import date, datetime
 from typing import List, Optional
 from sqlalchemy.ext.asyncio import AsyncSession
-from app.schemas import AppointmentCreate, AppointmentResponse, ErrorResponse
+from app.schemas import (
+    AppointmentCreate,
+    AppointmentResponse,
+    AppointmentCompletionResponse,
+    DayAvailabilityResponse,
+    ErrorResponse,
+)
 from app.services.appointment_service import AppointmentService
-from app.api.v1.deps import get_appointment_service
+from app.api.v1.deps import get_appointment_service, require_any_auth
 from app.db.session import get_db
 from app.core.logging import get_logger
 
@@ -46,7 +52,10 @@ async def book_appointment(
             doctor_id=appointment_data.doctor_id,
             appointment_date=appointment_data.date,
             time_slot=appointment_data.time_slot,
-            idempotency_key=idempotency_key
+            slot_label=appointment_data.slot_label,
+            visit_type=appointment_data.visit_type,
+            idempotency_key=idempotency_key,
+            intake_data=appointment_data.intake_data,
         )
         
         # Send real-time notification
@@ -111,10 +120,12 @@ async def list_all_appointments(
     service: AppointmentService = Depends(get_appointment_service),
     date: Optional[date] = Query(None, description="Date in YYYY-MM-DD format"),
     patient_id: Optional[UUID] = Query(None, description="Filter by patient ID"),
+    clinic_id: Optional[UUID] = Query(None, description="Filter by clinic ID"),
+    visit_type: Optional[str] = Query(None, description="consultation or procedure"),
     limit: Optional[int] = Query(None, description="Max number of results to return"),
 ):
     """List all appointments across all doctors, optionally filtered by date, patient, or limited"""
-    appointments = await service.list_all_appointments(date, patient_id)
+    appointments = await service.list_all_appointments(date, patient_id, visit_type, clinic_id)
     
     result = []
     for app in appointments:
@@ -125,6 +136,8 @@ async def list_all_appointments(
             "date": app.date,
             "slot": app.slot,
             "time_slot": app.time_slot,
+            "slot_label": app.slot_label,
+            "visit_type": app.visit_type,
             "status": app.status,
             "created_at": app.created_at,
             "updated_at": app.updated_at,
@@ -149,9 +162,10 @@ async def list_doctor_appointments(
     doctor_id: UUID,
     service: AppointmentService = Depends(get_appointment_service),
     date: Optional[date] = Query(None, description="Date in YYYY-MM-DD format"),
+    visit_type: Optional[str] = Query(None, description="consultation or procedure"),
 ):
     """List all appointments for a doctor, optionally filtered by date"""
-    appointments = await service.list_appointments_by_doctor_date(doctor_id, date)
+    appointments = await service.list_appointments_by_doctor_date(doctor_id, date, visit_type)
     
     result = []
     for app in appointments:
@@ -162,6 +176,8 @@ async def list_doctor_appointments(
             "date": app.date,
             "slot": app.slot,
             "time_slot": app.time_slot,
+            "slot_label": app.slot_label,
+            "visit_type": app.visit_type,
             "status": app.status,
             "created_at": app.created_at,
             "updated_at": app.updated_at,
@@ -173,3 +189,48 @@ async def list_doctor_appointments(
         result.append(app_dict)
         
     return result
+
+
+@router.post(
+    "/{appointment_id}/complete",
+    response_model=AppointmentCompletionResponse,
+    responses={404: {"model": ErrorResponse}, 409: {"model": ErrorResponse}},
+)
+async def complete_appointment(
+    appointment_id: UUID,
+    service: AppointmentService = Depends(get_appointment_service),
+    _auth=Depends(require_any_auth),
+):
+    """Mark an appointment as completed and return the next checked-in appointment."""
+    try:
+        result = await service.complete_appointment(appointment_id)
+        return result
+    except ValueError as e:
+        error_msg = str(e)
+        if "not found" in error_msg.lower():
+            raise HTTPException(
+                status_code=status.HTTP_404_NOT_FOUND,
+                detail={"error": "NotFound", "message": error_msg},
+            )
+        raise HTTPException(
+            status_code=status.HTTP_409_CONFLICT,
+            detail={"error": "Conflict", "message": error_msg},
+        )
+
+
+@router.get(
+    "/doctors/{doctor_id}/availability",
+    response_model=List[DayAvailabilityResponse],
+)
+async def get_doctor_slot_availability(
+    doctor_id: UUID,
+    service: AppointmentService = Depends(get_appointment_service),
+    visit_type: str = Query("consultation", description="consultation or procedure"),
+    days: int = Query(14, ge=1, le=60, description="How many upcoming days to evaluate"),
+):
+    """Return free days and non-full slot windows for booking."""
+    return await service.get_slot_availability(
+        doctor_id=doctor_id,
+        visit_type=visit_type,
+        days=days,
+    )

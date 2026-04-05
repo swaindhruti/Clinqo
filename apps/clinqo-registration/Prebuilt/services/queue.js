@@ -1,8 +1,7 @@
 const redisClient = require('../redis-config');
 const { sendWhatsAppMessage } = require('./whatsapp');
 const { getSession, getCollectedInfo, updateCollectedInfo, updateSessionState, clearUserData } = require('./session');
-const { createPatientRecord } = require('./patient');
-const { fetchDoctors } = require('./doctor');
+const { createPatientRecord, fetchDoctors } = require('./api');
 
 // State machine transitions
 const NEXT_STATE = {

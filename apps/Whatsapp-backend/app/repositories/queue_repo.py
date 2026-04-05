@@ -49,3 +49,17 @@ class QueueRepository:
             .order_by(QueueEntry.position)
         )
         return list(result.scalars().all())
+
+    async def update_status(self, appointment_id: UUID, status: QueueStatus) -> Optional[QueueEntry]:
+        result = await self.db.execute(
+            select(QueueEntry).where(QueueEntry.appointment_id == appointment_id)
+        )
+        queue_entry = result.scalar_one_or_none()
+
+        if not queue_entry:
+            return None
+
+        queue_entry.status = status
+        await self.db.commit()
+        await self.db.refresh(queue_entry)
+        return queue_entry
