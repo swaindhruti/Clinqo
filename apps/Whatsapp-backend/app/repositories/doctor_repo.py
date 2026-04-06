@@ -123,6 +123,16 @@ class DoctorRepository:
         await self.db.refresh(slot)
         return slot
 
+    async def assign_clinic(self, doctor_id: UUID, clinic_id: UUID) -> Optional[DoctorMaster]:
+        doctor = await self.get_by_id(doctor_id)
+        if not doctor:
+            return None
+
+        doctor.clinic_id = clinic_id
+        await self.db.commit()
+        await self.db.refresh(doctor)
+        return doctor
+
     async def list_weekly_slots(
         self,
         doctor_id: UUID,

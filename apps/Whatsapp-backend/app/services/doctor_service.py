@@ -78,9 +78,23 @@ class DoctorService:
         if slot_data["start_time"] >= slot_data["end_time"]:
             raise ValueError("start_time must be earlier than end_time")
 
+        clinic_id = slot_data.get("clinic_id")
+        if clinic_id and doctor.clinic_id != clinic_id:
+            await self.repo.assign_clinic(doctor_id, clinic_id)
+
         slot_data["doctor_id"] = doctor_id
         slot = await self.repo.create_weekly_slot(slot_data)
         return slot
+
+    async def assign_doctor_clinic(self, doctor_id: UUID, clinic_id: UUID) -> DoctorMaster:
+        doctor = await self.repo.get_by_id(doctor_id)
+        if not doctor:
+            raise ValueError(f"Doctor {doctor_id} not found")
+
+        updated = await self.repo.assign_clinic(doctor_id, clinic_id)
+        if not updated:
+            raise ValueError(f"Doctor {doctor_id} not found")
+        return updated
 
     async def list_weekly_slots(
         self,

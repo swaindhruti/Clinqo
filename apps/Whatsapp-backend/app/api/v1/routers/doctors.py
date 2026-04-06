@@ -91,6 +91,28 @@ async def get_doctor(
     return doctor
 
 
+@router.put(
+    "/{doctor_id}/clinic/{clinic_id}",
+    response_model=DoctorResponse,
+    responses={404: {"model": ErrorResponse}},
+)
+async def assign_doctor_to_clinic(
+    doctor_id: UUID,
+    clinic_id: UUID,
+    service: DoctorService = Depends(get_doctor_service),
+    _auth=Depends(require_clinic_or_admin),
+):
+    """Assign a doctor to a clinic."""
+    try:
+        doctor = await service.assign_doctor_clinic(doctor_id, clinic_id)
+        return doctor
+    except ValueError as e:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail={"error": "NotFound", "message": str(e)}
+        )
+
+
 @router.post(
     "/{doctor_id}/availability",
     response_model=AvailabilityResponse,

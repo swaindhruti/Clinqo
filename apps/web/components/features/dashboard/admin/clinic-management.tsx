@@ -11,10 +11,12 @@ import {
   Building2,
   CheckCircle2,
   XCircle,
+  Eye,
 } from "lucide-react";
 import { DataTable } from "@/components/ui/data-table";
 import { ColumnDef } from "@tanstack/react-table";
 import { apiClient } from "@/lib/api-client";
+import { ClinicDetails } from "./clinic-details";
 
 // Type Definition
 export type Clinic = {
@@ -57,84 +59,13 @@ function formatDate(value: string) {
   });
 }
 
-// Columns Definition
-export const columns: ColumnDef<Clinic>[] = [
-  {
-    accessorKey: "name",
-    header: "Clinic Name",
-    cell: ({ row }) => (
-      <div className="flex items-center gap-2">
-        <div className="h-8 w-8 rounded bg-blue-50 border border-blue-100 flex items-center justify-center text-blue-600">
-          <Building2 className="h-4 w-4" />
-        </div>
-        <span className="font-medium text-neutral-900">
-          {row.getValue("name")}
-        </span>
-      </div>
-    ),
-  },
-  {
-    accessorKey: "location",
-    header: "Location",
-    cell: ({ row }) => (
-      <span className="text-neutral-600">{row.getValue("location")}</span>
-    ),
-  },
-  {
-    accessorKey: "email",
-    header: "Contact Email",
-    cell: ({ row }) => (
-      <span className="text-neutral-600">{row.getValue("email")}</span>
-    ),
-  },
-  {
-    accessorKey: "appliedDate",
-    header: "Date",
-    cell: ({ row }) => (
-      <span className="text-neutral-500">{row.getValue("appliedDate")}</span>
-    ),
-  },
-  {
-    id: "actions",
-    cell: ({ row }) => {
-      const clinic = row.original;
-      return (
-        <div className="flex items-center justify-end gap-2">
-          {clinic.status === "applicant" && (
-            <>
-              <Button
-                variant="outline"
-                size="sm"
-                className="h-8 text-green-700 hover:text-green-800 hover:bg-green-50 border-green-200"
-              >
-                <CheckCircle2 className="mr-1 h-3.5 w-3.5" />
-                Approve
-              </Button>
-              <Button
-                variant="outline"
-                size="sm"
-                className="h-8 text-red-600 hover:text-red-700 hover:bg-red-50 border-red-200"
-              >
-                <XCircle className="mr-1 h-3.5 w-3.5" />
-                Reject
-              </Button>
-            </>
-          )}
-          <Button variant="ghost" size="icon" className="h-8 w-8">
-            <MoreHorizontal className="h-4 w-4 text-neutral-500" />
-          </Button>
-        </div>
-      );
-    },
-  },
-];
-
 export function ClinicManagement() {
   const queryClient = useQueryClient();
   const [showForm, setShowForm] = useState(false);
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [form, setForm] = useState({ name: "", address: "", phone: "", specialty: "" });
   const [selectedClinicId, setSelectedClinicId] = useState("");
+  const [selectedClinicForDetails, setSelectedClinicForDetails] = useState<string | null>(null);
   const [isSavingService, setIsSavingService] = useState(false);
   const [serviceForm, setServiceForm] = useState({
     visitType: "consultation" as VisitType,
@@ -142,6 +73,14 @@ export function ClinicManagement() {
     price: "",
     emoji: "",
   });
+  const [credentialForm, setCredentialForm] = useState({
+    clinicId: "",
+    email: "",
+    password: "",
+  });
+  const [isCreatingCredential, setIsCreatingCredential] = useState(false);
+  const [credentialMessage, setCredentialMessage] = useState<string | null>(null);
+  const [credentialError, setCredentialError] = useState<string | null>(null);
 
   const { data: liveClinics } = useQuery({
     queryKey: ["admin-clinics"],
@@ -211,12 +150,149 @@ export function ClinicManagement() {
     }
   };
 
+  const handleCreateClinicCredential = async () => {
+    if (!credentialForm.clinicId || !credentialForm.email.trim() || !credentialForm.password.trim()) {
+      setCredentialError("Clinic, email, and password are required.");
+      setCredentialMessage(null);
+      return;
+    }
+
+    setIsCreatingCredential(true);
+    setCredentialError(null);
+    setCredentialMessage(null);
+
+    try {
+      await apiClient.post("/auth/register", {
+        email: credentialForm.email.trim(),
+        password: credentialForm.password,
+        role: "clinic",
+        clinic_id: credentialForm.clinicId,
+      });
+
+      setCredentialMessage("Clinic login credentials created successfully.");
+      setCredentialForm((prev) => ({ ...prev, email: "", password: "" }));
+    } catch (error) {
+      const message = error instanceof Error ? error.message : "Failed to create clinic credentials.";
+      setCredentialError(message);
+    } finally {
+      setIsCreatingCredential(false);
+    }
+  };
+
   const consultationServices = (clinicServices || []).filter(
     (service) => service.visit_type === "consultation",
   );
   const procedureServices = (clinicServices || []).filter(
     (service) => service.visit_type === "procedure",
   );
+
+  // Create columns with access to state
+  const columns: ColumnDef<Clinic>[] = [
+    {
+      accessorKey: "name",
+      header: "Clinic Name",
+      cell: ({ row }) => (
+        <div className="flex items-center gap-2">
+          <div className="h-8 w-8 rounded bg-blue-50 border border-blue-100 flex items-center justify-center text-blue-600">
+            <Building2 className="h-4 w-4" />
+          </div>
+          <span className="font-medium text-neutral-900">
+            {row.getValue("name")}
+          </span>
+        </div>
+      ),
+    },
+    {
+      accessorKey: "location",
+      header: "Location",
+      cell: ({ row }) => (
+        <span className="text-neutral-600">{row.getValue("location")}</span>
+      ),
+    },
+    {
+      accessorKey: "email",
+      header: "Contact Email",
+      cell: ({ row }) => (
+        <span className="text-neutral-600">{row.getValue("email")}</span>
+      ),
+    },
+    {
+      accessorKey: "appliedDate",
+      header: "Date",
+      cell: ({ row }) => (
+        <span className="text-neutral-500">{row.getValue("appliedDate")}</span>
+      ),
+    },
+    {
+      accessorKey: "status",
+      header: "Status",
+      cell: ({ row }) => {
+        const status = row.getValue("status") as string;
+        const statusColors: Record<string, string> = {
+          approved: "bg-green-100 text-green-800",
+          applicant: "bg-blue-100 text-blue-800",
+          rejected: "bg-red-100 text-red-800",
+        };
+        return (
+          <span className={`inline-block px-3 py-1 rounded-full text-sm font-medium ${statusColors[status] || "bg-neutral-100 text-neutral-800"}`}>
+            {status.charAt(0).toUpperCase() + status.slice(1)}
+          </span>
+        );
+      },
+    },
+    {
+      id: "actions",
+      cell: ({ row }) => {
+        const clinic = row.original;
+        return (
+          <div className="flex items-center justify-end gap-2">
+            <Button
+              variant="outline"
+              size="sm"
+              className="h-8 text-blue-700 hover:text-blue-800 hover:bg-blue-50 border-blue-200"
+              onClick={() => setSelectedClinicForDetails(clinic.id)}
+            >
+              <Eye className="mr-1 h-3.5 w-3.5" />
+              View Details
+            </Button>
+            {clinic.status === "applicant" && (
+              <>
+                <Button
+                  variant="outline"
+                  size="sm"
+                  className="h-8 text-green-700 hover:text-green-800 hover:bg-green-50 border-green-200"
+                >
+                  <CheckCircle2 className="mr-1 h-3.5 w-3.5" />
+                  Approve
+                </Button>
+                <Button
+                  variant="outline"
+                  size="sm"
+                  className="h-8 text-red-600 hover:text-red-700 hover:bg-red-50 border-red-200"
+                >
+                  <XCircle className="mr-1 h-3.5 w-3.5" />
+                  Reject
+                </Button>
+              </>
+            )}
+            <Button variant="ghost" size="icon" className="h-8 w-8">
+              <MoreHorizontal className="h-4 w-4 text-neutral-500" />
+            </Button>
+          </div>
+        );
+      },
+    },
+  ];
+
+  // If viewing clinic details, render the ClinicDetails component
+  if (selectedClinicForDetails) {
+    return (
+      <ClinicDetails
+        clinicId={selectedClinicForDetails}
+        onBack={() => setSelectedClinicForDetails(null)}
+      />
+    );
+  }
 
   return (
     <div className="flex flex-col gap-6 animate-in fade-in duration-500">
@@ -249,6 +325,61 @@ export function ClinicManagement() {
           </div>
         </div>
       ) : null}
+
+      <div className="rounded-xl border border-neutral-200 bg-white p-4 shadow-sm">
+        <h3 className="text-base font-semibold text-neutral-900 mb-3">
+          Clinic Portal Credentials
+        </h3>
+        <p className="text-sm text-neutral-500 mb-4">
+          Create login credentials for a clinic so they can access the clinic dashboard.
+        </p>
+
+        <div className="grid gap-3 md:grid-cols-4">
+          <select
+            className="rounded-lg border border-neutral-200 px-3 py-2 text-sm"
+            value={credentialForm.clinicId}
+            onChange={(e) => setCredentialForm((prev) => ({ ...prev, clinicId: e.target.value }))}
+          >
+            <option value="">Select clinic</option>
+            {(liveClinics || []).map((clinic) => (
+              <option key={clinic.id} value={clinic.id}>
+                {clinic.name}
+              </option>
+            ))}
+          </select>
+
+          <input
+            className="rounded-lg border border-neutral-200 px-3 py-2 text-sm"
+            placeholder="Clinic email"
+            type="email"
+            value={credentialForm.email}
+            onChange={(e) => setCredentialForm((prev) => ({ ...prev, email: e.target.value }))}
+          />
+
+          <input
+            className="rounded-lg border border-neutral-200 px-3 py-2 text-sm"
+            placeholder="Temporary password"
+            type="password"
+            value={credentialForm.password}
+            onChange={(e) => setCredentialForm((prev) => ({ ...prev, password: e.target.value }))}
+          />
+
+          <Button
+            type="button"
+            disabled={isCreatingCredential}
+            onClick={handleCreateClinicCredential}
+          >
+            {isCreatingCredential ? "Creating..." : "Create Credentials"}
+          </Button>
+        </div>
+
+        {credentialMessage ? (
+          <p className="mt-3 text-sm text-green-700">{credentialMessage}</p>
+        ) : null}
+        {credentialError ? (
+          <p className="mt-3 text-sm text-red-600">{credentialError}</p>
+        ) : null}
+      </div>
 
       <div className="rounded-xl border border-neutral-200 bg-white p-4 shadow-sm">
         <h3 className="text-base font-semibold text-neutral-900 mb-3">

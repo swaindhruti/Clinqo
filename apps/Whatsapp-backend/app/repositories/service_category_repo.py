@@ -1,5 +1,5 @@
 from sqlalchemy.ext.asyncio import AsyncSession
-from sqlalchemy import select
+from sqlalchemy import select, delete
 from app.models import ServiceCategory
 from uuid import UUID
 from typing import Optional
@@ -29,3 +29,10 @@ class ServiceCategoryRepository:
             select(ServiceCategory).where(ServiceCategory.id == category_id)
         )
         return result.scalar_one_or_none()
+
+    async def delete(self, category_id: UUID) -> bool:
+        result = await self.db.execute(
+            delete(ServiceCategory).where(ServiceCategory.id == category_id)
+        )
+        await self.db.commit()
+        return result.rowcount > 0

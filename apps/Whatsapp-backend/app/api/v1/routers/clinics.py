@@ -1,10 +1,17 @@
 from fastapi import APIRouter, Depends, HTTPException, status, Query
 from uuid import UUID
 from typing import List, Optional
-from app.schemas import ClinicCreate, ClinicResponse, ServiceCategoryCreate, ServiceCategoryResponse, ErrorResponse
+from app.schemas import (
+    ClinicCreate, ClinicResponse, ServiceCategoryCreate, ServiceCategoryResponse, 
+    ErrorResponse, DoctorResponse, DoctorWeeklySlotResponse
+)
 from app.services.clinic_service import ClinicService
 from app.services.service_category_service import ServiceCategoryService
-from app.api.v1.deps import get_clinic_service, get_service_category_service, require_admin, require_clinic_or_admin
+from app.services.doctor_service import DoctorService
+from app.api.v1.deps import (
+    get_clinic_service, get_service_category_service, require_admin, 
+    require_clinic_or_admin, get_doctor_service
+)
 from app.core.logging import get_logger
 
 router = APIRouter(prefix="/clinics", tags=["clinics"])
@@ -110,3 +117,84 @@ async def create_clinic_service(
     data["clinic_id"] = clinic_id
     category = await sc_service.create_category(data)
     return category
+
+
+@router.delete(
+    "/{clinic_id}/services/{service_id}",
+    status_code=status.HTTP_204_NO_CONTENT,
+    responses={404: {"model": ErrorResponse}}
+)
+async def delete_clinic_service(
+    clinic_id: UUID,
+    service_id: UUID,
+    clinic_service: ClinicService = Depends(get_clinic_service),
+    sc_service: ServiceCategoryService = Depends(get_service_category_service),
+    _auth=Depends(require_clinic_or_admin)
+):
+    """Delete a service category from a clinic."""
+    clinic = await clinic_service.get_clinic(clinic_id)
+    if not clinic:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail={"error": "NotFound", "message": f"Clinic {clinic_id} not found"}
+        )
+    deleted = await sc_service.delete_category(service_id)
+    if not deleted:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail={"error": "NotFound", "message": "Service not found"}
+        )
+
+
+@router.get(
+    "/{clinic_id}/doctors",
+    response_model=List[DoctorResponse],
+)
+async def list_clinic_doctors(
+    clinic_id: UUID,
+    clinic_service: ClinicService = Depends(get_clinic_service),
+    doctor_service: DoctorService = Depends(get_doctor_service)
+):
+    """List all doctors assigned to a clinic."""
+    clinic = await clinic_service.get_clinic(clinic_id)
+    if not clinic:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail={"error": "NotFound", "message": f"Clinic {clinic_id} not found"}
+        )
+    doctors = await doctor_service.list_doctors(clinic_id=clinic_id)
+    return doctors
+
+
+@router.get(
+    "/{clinic_id}/doctor-weekly-slots",
+    response_model=List[DoctorWeeklySlotResponse],
+)
+async def list_clinic_doctor_weekly_slots(
+    clinic_id: UUID,
+    visit_type: Optional[str] = Query(None, description="consultation or procedure"),
+    clinic_service: ClinicService = Depends(get_clinic_service),
+    doctor_service: DoctorService = Depends(get_doctor_service)
+):
+    """List all weekly slots for doctors in a clinic."""
+    clinic = await clinic_service.get_clinic(clinic_id)
+    if not clinic:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail={"error": "NotFound", "message": f"Clinic {clinic_id} not found"}
+        )
+    
+    # Get all doctors in this clinic
+    doctors = await doctor_service.list_doctors(clinic_id=clinic_id)
+    
+    # Collect all weekly slots from all doctors
+    all_slots = []
+    for doctor in doctors:
+        slots = await doctor_service.list_weekly_slots(
+            doctor_id=doctor.id,
+            clinic_id=clinic_id,
+            visit_type=visit_type
+        )
+        all_slots.extend(slots)
+    
+    return all_slots

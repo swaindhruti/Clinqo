@@ -291,7 +291,7 @@ async function handleShowSlots(waId, session, lang) {
 
 async function sendConsultationConfirmation(waId, session, lang) {
   const concern = session.detail_answers?.concern || 'N/A';
-  const timeLabel = session.selected_slot_label || formatTimeSlot(session.selected_slot);
+  const timeLabel = session.selected_slot_label || (session.selected_slot != null ? formatTimeSlot(session.selected_slot) : 'N/A');
   let msg = getMessage(lang, 'confirm_consultation_details', {
     name: session.name, clinic: session.clinic_name || 'N/A',
     sub_category: session.sub_category_name || 'N/A',
@@ -306,6 +306,7 @@ async function sendProcedureConfirmation(waId, session, lang) {
   const concern = session.detail_answers?.concern || 'N/A';
   let msg = getMessage(lang, 'procedure_confirm_details', {
     name: session.name, clinic: session.clinic_name || 'N/A',
+    type: session.visit_type || 'PROCEDURE',
     sub_category: session.sub_category_name || 'N/A',
     fee: session.fee || 'N/A', concern
   });
@@ -319,38 +320,43 @@ async function handleBooking(waId, session, lang) {
       || session.cached_slots?.[session.selected_slot_index || 0];
 
     const visitType = session.visit_type?.toLowerCase() === 'procedure' ? 'procedure' : 'consultation';
-    const timeLabel = selectedSlot?.slot_label || formatTimeSlot(session.selected_slot);
+    const timeLabel = selectedSlot?.slot_label || (session.selected_slot != null ? formatTimeSlot(session.selected_slot) : 'N/A');
     const concern = session.detail_answers?.concern || 'N/A';
 
     if (visitType === 'procedure') {
-      const appointment = await createAppointment(
-        session.patient_id,
-        session.doctor_id,
-        session.selected_date,
-        session.selected_slot,
-        undefined,
-        {
-          slotLabel: selectedSlot?.slot_label || session.selected_slot_label,
-          visitType,
-          intakeData: session.detail_answers || {},
-        }
-      );
-
-      try {
-        await createProcedureBooking(
+      await createProcedureBooking(
         session.clinic_id,
         session.patient_id,
         session.selected_date,
         timeLabel,
         session.detail_answers || {},
         session.sub_category_name || null,
-        );
-      } catch (procedureError) {
-        console.warn('⚠️ Procedure booking record creation failed (appointment still created):', procedureError.message || procedureError);
+      );
+
+      let checkInCode = null;
+      if (session.doctor_id) {
+        try {
+          const appointment = await createAppointment(
+            session.patient_id,
+            session.doctor_id,
+            session.selected_date,
+            session.selected_slot,
+            undefined,
+            {
+              slotLabel: selectedSlot?.slot_label || session.selected_slot_label,
+              visitType,
+              intakeData: session.detail_answers || {},
+            }
+          );
+          checkInCode = appointment.check_in_code || null;
+        } catch (appointmentError) {
+          console.warn('⚠️ Procedure appointment creation skipped/failed, procedure request saved:', appointmentError.response?.data || appointmentError.message || appointmentError);
+        }
       }
 
-      const checkInCode = appointment.check_in_code || 'N/A';
-      const qrUrl = `https://api.qrserver.com/v1/create-qr-code/?size=300x300&data=${encodeURIComponent(checkInCode)}`;
+      const qrUrl = checkInCode
+        ? `https://api.qrserver.com/v1/create-qr-code/?size=300x300&data=${encodeURIComponent(checkInCode)}`
+        : null;
       const details = getMessage(lang, 'procedure_confirm_details', {
         name: session.name,
         clinic: session.clinic_name || 'N/A',
@@ -359,11 +365,16 @@ async function handleBooking(waId, session, lang) {
         concern,
       });
 
-      await sendWhatsAppMessage(waId, getMessage(lang, 'booking_success', {
-        details: `${details}\n📅 Preferred Date: ${session.selected_date}\n🕒 Preferred Time: ${timeLabel}`,
-        check_in_code: checkInCode,
-        qr_url: qrUrl,
-      }));
+      const procedureDetails = `${details}\n📅 Preferred Date: ${session.selected_date}\n🕒 Preferred Time: ${timeLabel}`;
+      if (checkInCode && qrUrl) {
+        await sendWhatsAppMessage(waId, getMessage(lang, 'booking_success', {
+          details: procedureDetails,
+          check_in_code: checkInCode,
+          qr_url: qrUrl,
+        }));
+      } else {
+        await sendWhatsAppMessage(waId, getMessage(lang, 'procedure_confirmed', { details: procedureDetails }));
+      }
 
       session.state = 'COMPLETE';
       await saveSession(waId, session);
@@ -397,7 +408,7 @@ async function handleBooking(waId, session, lang) {
     await saveSession(waId, session);
     await clearUserData(waId);
   } catch (error) {
-    console.error('❌ Booking failed:', error);
+    console.error('❌ Booking failed:', error.response?.data || error.message || error);
     await sendWhatsAppMessage(waId, getMessage(lang, 'booking_error'));
   }
 }

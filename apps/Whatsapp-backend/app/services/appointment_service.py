@@ -68,6 +68,12 @@ class AppointmentService:
         availability = await self.doctor_repo.get_availability(doctor_id, appointment_date)
         if availability and not availability.is_present:
             raise ValueError(f"Doctor is not available on {appointment_date}")
+
+        await self.doctor_repo.get_or_create_capacity(
+            doctor_id,
+            appointment_date,
+            settings.MAX_APPOINTMENTS_PER_DOCTOR_PER_DAY,
+        )
         
         if slot_label:
             weekday = appointment_date.weekday()
@@ -88,12 +94,6 @@ class AppointmentService:
             )
             if current_booked >= weekly_slot.max_patients:
                 raise ValueError("Selected slot is already full")
-        else:
-            await self.doctor_repo.get_or_create_capacity(
-                doctor_id,
-                appointment_date,
-                settings.MAX_APPOINTMENTS_PER_DOCTOR_PER_DAY,
-            )
         
         # Generate check-in code
         check_in_code = await self._generate_check_in_code()

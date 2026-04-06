@@ -214,10 +214,10 @@ async function processIncomingMessage(messageData) {
         const selectedVisitType = isProcedureMenu ? 'procedure' : 'consultation';
 
         if (messageText === '1' || messageText === '3') {
-          // Upcoming
+          // Upcoming (limit to 5)
           const upcoming = isProcedureMenu
-            ? (procedureBookings || []).filter((p) => p.preferred_date >= today && p.status !== 'completed' && p.status !== 'cancelled')
-            : (appts || []).filter((a) => a.visit_type === selectedVisitType && a.date >= today && a.status === 'booked');
+            ? (procedureBookings || []).filter((p) => p.preferred_date >= today && p.status !== 'completed' && p.status !== 'cancelled').slice(0, 5)
+            : (appts || []).filter((a) => a.visit_type === selectedVisitType && a.date >= today && a.status === 'booked').slice(0, 5);
           if (upcoming.length === 0) {
             await sendWhatsAppMessage(
               waId,

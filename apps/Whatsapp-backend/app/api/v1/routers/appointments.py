@@ -58,9 +58,18 @@ async def book_appointment(
             intake_data=appointment_data.intake_data,
         )
         
-        # Send real-time notification
-        from app.api.v1.routers.websockets import notify_queue_update
-        await notify_queue_update(appointment.doctor_id, appointment.date, db)
+        # Send real-time notification (non-blocking to booking success)
+        try:
+            from app.api.v1.routers.websockets import notify_queue_update
+            await notify_queue_update(appointment.doctor_id, appointment.date, db)
+        except Exception as notify_error:
+            logger.warning(
+                "Queue notification failed after successful booking",
+                appointment_id=str(appointment.id),
+                doctor_id=str(appointment.doctor_id),
+                date=str(appointment.date),
+                error=str(notify_error),
+            )
         
         return appointment
     except ValueError as e:

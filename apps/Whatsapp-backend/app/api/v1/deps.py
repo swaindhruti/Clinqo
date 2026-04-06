@@ -106,9 +106,11 @@ def get_service_category_service(
 
 
 def get_auth_service(
-    user_repo: UserRepository = Depends(get_user_repo)
+    user_repo: UserRepository = Depends(get_user_repo),
+    clinic_repo: ClinicRepository = Depends(get_clinic_repo),
+    doctor_repo: DoctorRepository = Depends(get_doctor_repo),
 ) -> AuthService:
-    return AuthService(user_repo)
+    return AuthService(user_repo, clinic_repo, doctor_repo)
 
 
 def get_query_service(

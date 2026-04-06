@@ -16,7 +16,7 @@ class AppointmentRepository:
         result = await self.db.execute(
             select(Appointment).options(
                 joinedload(Appointment.patient),
-                joinedload(Appointment.doctor)
+                joinedload(Appointment.doctor).joinedload(DoctorMaster.clinic)
             ).where(Appointment.id == appointment_id)
         )
         return result.scalar_one_or_none()
@@ -25,7 +25,7 @@ class AppointmentRepository:
         result = await self.db.execute(
             select(Appointment).options(
                 joinedload(Appointment.patient),
-                joinedload(Appointment.doctor),
+                joinedload(Appointment.doctor).joinedload(DoctorMaster.clinic),
             ).where(Appointment.idempotency_key == idempotency_key)
         )
         return result.scalar_one_or_none()
@@ -38,7 +38,7 @@ class AppointmentRepository:
     ) -> List[Appointment]:
         query = select(Appointment).options(
             joinedload(Appointment.patient),
-            joinedload(Appointment.doctor)
+            joinedload(Appointment.doctor).joinedload(DoctorMaster.clinic)
         ).where(
             and_(
                 Appointment.doctor_id == doctor_id,
@@ -62,7 +62,7 @@ class AppointmentRepository:
     ) -> List[Appointment]:
         query = select(Appointment).options(
             joinedload(Appointment.patient),
-            joinedload(Appointment.doctor)
+            joinedload(Appointment.doctor).joinedload(DoctorMaster.clinic)
         ).where(
             Appointment.status != AppointmentStatus.CANCELLED
         )
@@ -96,7 +96,7 @@ class AppointmentRepository:
         result = await self.db.execute(
             select(Appointment).options(
                 joinedload(Appointment.patient),
-                joinedload(Appointment.doctor)
+                joinedload(Appointment.doctor).joinedload(DoctorMaster.clinic)
             ).where(Appointment.check_in_code == check_in_code)
         )
         return result.scalar_one_or_none()

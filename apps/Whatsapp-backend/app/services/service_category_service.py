@@ -15,3 +15,6 @@ class ServiceCategoryService:
 
     async def get_category(self, category_id: UUID):
         return await self.repo.get_by_id(category_id)
+
+    async def delete_category(self, category_id: UUID) -> bool:
+        return await self.repo.delete(category_id)
