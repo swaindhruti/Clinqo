@@ -22,9 +22,9 @@ async function sendVisitTypeMenu(waId, lang) {
       waId,
       getMessage(lang, 'visit_type_prompt'),
       [
-        { id: '1', title: '🩺 Consultation' },
-        { id: '2', title: '💉 Procedure' },
-        { id: '3', title: '❓ General Query' },
+        { id: '1', title: getMessage(lang, 'btn_consultation') },
+        { id: '2', title: getMessage(lang, 'btn_procedure') },
+        { id: '3', title: getMessage(lang, 'btn_general_query') },
       ]
     );
   } catch (_err) {
@@ -38,8 +38,8 @@ async function sendConfirmButtons(waId, lang) {
       waId,
       getMessage(lang, 'confirm_action_text'),
       [
-        { id: '1', title: '✅ Yes' },
-        { id: '2', title: '❌ No' },
+        { id: '1', title: getMessage(lang, 'btn_yes') },
+        { id: '2', title: getMessage(lang, 'btn_no') },
       ]
     );
   } catch (_err) {
@@ -105,13 +105,13 @@ async function handleShowSubCategories(waId, session, lang) {
       await sendWhatsAppList(
         waId,
         getMessage(lang, 'sub_category_header'),
-        'Choose',
+        getMessage(lang, 'list_choose'),
         [{
-          title: 'Sub-categories',
+          title: getMessage(lang, 'list_title_subcategories'),
           rows: subCats.map((cat, idx) => ({
             id: String(idx + 1),
             title: short(`${cat.emoji || '📋'} ${cat.name}`),
-            description: short(`Fee: ${cat.price || 'N/A'}`, 72),
+            description: short(getMessage(lang, 'list_desc_fee', { fee: cat.price || 'N/A' }), 72),
           }))
         }]
       );
@@ -163,9 +163,9 @@ async function handleShowDoctors(waId, session, lang) {
       await sendWhatsAppList(
         waId,
         getMessage(lang, 'doctors_header'),
-        'Choose',
+        getMessage(lang, 'list_choose'),
         [{
-          title: 'Doctors',
+          title: getMessage(lang, 'list_title_doctors'),
           rows: doctors.map((doc, idx) => ({
             id: String(idx + 1),
             title: short(doc.name || `Doctor ${idx + 1}`),
@@ -185,24 +185,15 @@ async function handleShowDoctors(waId, session, lang) {
 async function handleShowDates(waId, session, lang) {
   try {
     const visitType = session.visit_type?.toLowerCase() === 'procedure' ? 'procedure' : 'consultation';
-    let availableDates = [];
-
-    if (visitType === 'procedure') {
-      availableDates = getNextNDays(7).map((item) => ({
-        ...item,
-        slots: ALL_TIME_SLOTS.map((slot) => ({ slot_label: slot.label })),
-      }));
-    } else {
-      const availability = await fetchDoctorSlotAvailability(session.doctor_id, visitType, 7);
-      availableDates = availability.map((item) => {
-        const dateObj = new Date(item.date);
-        return {
-          dateStr: item.date,
-          dayIndex: dateObj.getDay(),
-          slots: item.slots || []
-        };
-      });
-    }
+    const availability = await fetchDoctorSlotAvailability(session.doctor_id, visitType, 7);
+    const availableDates = availability.map((item) => {
+      const dateObj = new Date(item.date);
+      return {
+        dateStr: item.date,
+        dayIndex: dateObj.getDay(),
+        slots: item.slots || []
+      };
+    });
 
     if (availableDates.length === 0) {
       await sendWhatsAppMessage(waId, getMessage(lang, 'no_dates'));
@@ -225,9 +216,9 @@ async function handleShowDates(waId, session, lang) {
       await sendWhatsAppList(
         waId,
         getMessage(lang, 'dates_header'),
-        'Choose',
+        getMessage(lang, 'list_choose'),
         [{
-          title: 'Available dates',
+          title: getMessage(lang, 'list_title_dates'),
           rows: availableDates.map((d, idx) => ({
             id: String(idx + 1),
             title: short(d.dateStr),
@@ -268,13 +259,13 @@ async function handleShowSlots(waId, session, lang) {
       await sendWhatsAppList(
         waId,
         getMessage(lang, 'slots_header'),
-        'Choose',
+        getMessage(lang, 'list_choose'),
         [{
-          title: 'Available slots',
+          title: getMessage(lang, 'list_title_slots'),
           rows: available.map((slot, idx) => ({
             id: String(idx + 1),
             title: short(slot.slot_label || `Slot ${idx + 1}`),
-            description: short('Tap to select this time', 72),
+            description: short(getMessage(lang, 'list_desc_tap_select_time'), 72),
           }))
         }]
       );

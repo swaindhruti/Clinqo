@@ -49,3 +49,20 @@ async def list_procedure_bookings(
         patient_id=patient_id,
         patient_phone=patient_phone,
     )
+
+
+@router.delete(
+    "/{procedure_id}",
+    status_code=status.HTTP_204_NO_CONTENT,
+    responses={404: {"model": ErrorResponse}},
+)
+async def delete_procedure_booking(
+    procedure_id: UUID,
+    service: ProcedureService = Depends(get_procedure_service),
+):
+    deleted = await service.delete_booking(procedure_id)
+    if not deleted:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail={"error": "NotFound", "message": f"Procedure booking {procedure_id} not found"},
+        )

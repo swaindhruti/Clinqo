@@ -55,10 +55,11 @@ export default function SignInPage() {
       });
 
       setAuthSession(token);
+      router.replace(getDashboardPathForRole(token.role));
+
       const user = await apiClient.get<User>("/auth/me");
       setAuthSession(token, user);
       setStoredUser(user);
-      router.replace(getDashboardPathForRole(user.role));
     } catch (err) {
       clearAuthSession();
       if (err instanceof APIError) {

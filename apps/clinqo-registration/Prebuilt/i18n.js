@@ -21,14 +21,14 @@ const MESSAGES = {
     od: "❌ କ୍ଷମା କରନ୍ତୁ, କ୍ଲିନିକ୍ ଆଇଡି ବୈଧ ନୁହେଁ। ଦୟାକରି ସଠିକ QR କୋଡ୍ ସ୍କାନ୍ କରନ୍ତୁ।"
   },
   menu_prompt: {
-    en: "Hello! 👋 How can we help?\n\n1. 📋 View upcoming appointments\n2. 📜 View past appointments\n3. 💉 View upcoming procedures\n4. 🧾 View past procedures\n\n_To book a new appointment, please scan the clinic QR code._",
-    hi: "नमस्ते! 👋 हम कैसे मदद कर सकते हैं?\n\n1. 📋 आगामी अपॉइंटमेंट देखें\n2. 📜 पिछली अपॉइंटमेंट देखें\n3. 💉 आगामी प्रक्रियाएँ देखें\n4. 🧾 पिछली प्रक्रियाएँ देखें\n\n_नई अपॉइंटमेंट बुक करने के लिए क्लिनिक QR कोड स्कैन करें।_",
-    od: "ନମସ୍କାର! 👋 ଆମେ କିପରି ସାହାଯ୍ୟ କରିବା?\n\n1. 📋 ଆଗାମୀ ଆପଏଣ୍ଟମେଣ୍ଟ ଦେଖନ୍ତୁ\n2. 📜 ପୂର୍ବ ଆପଏଣ୍ଟମେଣ୍ଟ ଦେଖନ୍ତୁ\n3. 💉 ଆଗାମୀ ପ୍ରକ୍ରିୟା ଦେଖନ୍ତୁ\n4. 🧾 ପୂର୍ବ ପ୍ରକ୍ରିୟା ଦେଖନ୍ତୁ\n\n_ନୂଆ ଆପଏଣ୍ଟମେଣ୍ଟ ବୁକ୍ କରିବା ପାଇଁ କ୍ଲିନିକ୍ QR କୋଡ୍ ସ୍କାନ୍ କରନ୍ତୁ।_"
+    en: "Hello! 👋 How can we help?\n\n1. 📋 View upcoming appointments\n2. 💉 View upcoming procedures\n\n_To book a new appointment, please scan the clinic QR code._",
+    hi: "नमस्ते! 👋 हम कैसे मदद कर सकते हैं?\n\n1. 📋 आगामी अपॉइंटमेंट देखें\n2. 💉 आगामी प्रक्रियाएँ देखें\n\n_नई अपॉइंटमेंट बुक करने के लिए क्लिनिक QR कोड स्कैन करें।_",
+    od: "ନମସ୍କାର! 👋 ଆମେ କିପରି ସାହାଯ୍ୟ କରିବା?\n\n1. 📋 ଆଗାମୀ ଆପଏଣ୍ଟମେଣ୍ଟ ଦେଖନ୍ତୁ\n2. 💉 ଆଗାମୀ ପ୍ରକ୍ରିୟା ଦେଖନ୍ତୁ\n\n_ନୂଆ ଆପଏଣ୍ଟମେଣ୍ଟ ବୁକ୍ କରିବା ପାଇଁ କ୍ଲିନିକ୍ QR କୋଡ୍ ସ୍କାନ୍ କରନ୍ତୁ।_"
   },
   invalid_menu: {
-    en: "Please enter 1, 2, 3, or 4.",
-    hi: "कृपया 1, 2, 3, या 4 दर्ज करें।",
-    od: "ଦୟାକରି 1, 2, 3, ବା 4 ଲେଖନ୍ତୁ।"
+    en: "Please enter 1 or 2.",
+    hi: "कृपया 1 या 2 दर्ज करें।",
+    od: "ଦୟାକରି 1 ବା 2 ଲେଖନ୍ତୁ।"
   },
   no_patient_found_menu: {
     en: "No records found for your number. Please scan a clinic QR code to book your first appointment.",
@@ -49,6 +49,11 @@ const MESSAGES = {
     en: "{index}. Dr. {doctor} — {date} ({status})",
     hi: "{index}. डॉ. {doctor} — {date} ({status})",
     od: "{index}. ଡାକ୍ତର {doctor} — {date} ({status})"
+  },
+  upcoming_with_code_item: {
+    en: "{index}. 📅 {date} | ⏰ {time}\n🔑 Code: {code}\n🔗 QR: {qr_url}",
+    hi: "{index}. 📅 {date} | ⏰ {time}\n🔑 कोड: {code}\n🔗 QR: {qr_url}",
+    od: "{index}. 📅 {date} | ⏰ {time}\n🔑 କୋଡ୍: {code}\n🔗 QR: {qr_url}"
   },
   procedure_list_item: {
     en: "{index}. {sub_category} — {date} ({status})",
@@ -110,6 +115,16 @@ const MESSAGES = {
     hi: "क्या आप नए या पुराने मरीज हैं?\n\n1. 🆕 नया मरीज\n2. 🔄 पुराना मरीज",
     od: "ଆପଣ ନୂଆ କି ପୁରୁଣା ରୋଗୀ?\n\n1. 🆕 ନୂଆ ରୋଗୀ\n2. 🔄 ପୁରୁଣା ରୋଗୀ"
   },
+  btn_new_patient: {
+    en: "🆕 New Patient",
+    hi: "🆕 नया मरीज",
+    od: "🆕 ନୂଆ ରୋଗୀ"
+  },
+  btn_returning_patient: {
+    en: "🔄 Returning",
+    hi: "🔄 पुराना मरीज",
+    od: "🔄 ପୁରୁଣା ରୋଗୀ"
+  },
   invalid_patient_type: {
     en: "Please enter 1 (New Patient) or 2 (Returning Patient).",
     hi: "कृपया 1 (नया मरीज) या 2 (पुराना मरीज) दर्ज करें।",
@@ -126,14 +141,24 @@ const MESSAGES = {
     od: "ଦୟାକରି ଆପଣଙ୍କ ବୟସ ଲେଖନ୍ତୁ:"
   },
   ask_sex: {
-    en: "Please enter your gender:\n1. Male\n2. Female\n3. Other",
-    hi: "कृपया अपना लिंग दर्ज करें:\n1. पुरुष\n2. महिला\n3. अन्य",
-    od: "ଦୟାକରି ଆପଣଙ୍କ ଲିଙ୍ଗ ଲେଖନ୍ତୁ:\n1. ପୁରୁଷ\n2. ମହିଳା\n3. ଅନ୍ୟ"
+    en: "Please choose your gender:",
+    hi: "कृपया अपना लिंग चुनें:",
+    od: "ଦୟାକରି ଆପଣଙ୍କ ଲିଙ୍ଗ ବାଛନ୍ତୁ:"
+  },
+  gender_male: {
+    en: "Male",
+    hi: "पुरुष",
+    od: "ପୁରୁଷ"
+  },
+  gender_female: {
+    en: "Female",
+    hi: "महिला",
+    od: "ମହିଳା"
   },
   invalid_sex: {
-    en: "Please enter 1 (Male), 2 (Female), or 3 (Other).",
-    hi: "कृपया 1 (पुरुष), 2 (महिला), या 3 (अन्य) दर्ज करें।",
-    od: "ଦୟାକରି 1 (ପୁରୁଷ), 2 (ମହିଳା), ବା 3 (ଅନ୍ୟ) ଲେଖନ୍ତୁ।"
+    en: "Please select 1 (Male) or 2 (Female).",
+    hi: "कृपया 1 (पुरुष) या 2 (महिला) चुनें।",
+    od: "ଦୟାକରି 1 (ପୁରୁଷ) ବା 2 (ମହିଳା) ବାଛନ୍ତୁ।"
   },
   patient_created: {
     en: "✅ Your profile has been created successfully!\n🆔 Patient ID: {patient_id}",
@@ -255,6 +280,71 @@ const MESSAGES = {
     hi: "\nसमय स्लॉट चुनने के लिए नंबर दर्ज करें:",
     od: "\nସମୟ ସ୍ଲଟ୍ ବାଛିବା ପାଇଁ ନମ୍ବର ଲେଖନ୍ତୁ:"
   },
+  list_open_menu: {
+    en: "Open menu",
+    hi: "मेनू खोलें",
+    od: "ମେନୁ ଖୋଲନ୍ତୁ"
+  },
+  list_choose: {
+    en: "Choose",
+    hi: "चुनें",
+    od: "ବାଛନ୍ତୁ"
+  },
+  main_menu_title: {
+    en: "Main Menu",
+    hi: "मुख्य मेनू",
+    od: "ମୁଖ୍ୟ ମେନୁ"
+  },
+  menu_upcoming_appointments_title: {
+    en: "Upcoming appointments",
+    hi: "आगामी अपॉइंटमेंट",
+    od: "ଆଗାମୀ ଆପଏଣ୍ଟମେଣ୍ଟ"
+  },
+  menu_upcoming_appointments_desc: {
+    en: "View upcoming appointments",
+    hi: "आगामी अपॉइंटमेंट देखें",
+    od: "ଆଗାମୀ ଆପଏଣ୍ଟମେଣ୍ଟ ଦେଖନ୍ତୁ"
+  },
+  menu_upcoming_procedures_title: {
+    en: "Upcoming procedures",
+    hi: "आगामी प्रक्रियाएँ",
+    od: "ଆଗାମୀ ପ୍ରକ୍ରିୟା"
+  },
+  menu_upcoming_procedures_desc: {
+    en: "View upcoming procedures",
+    hi: "आगामी प्रक्रियाएँ देखें",
+    od: "ଆଗାମୀ ପ୍ରକ୍ରିୟା ଦେଖନ୍ତୁ"
+  },
+  list_title_subcategories: {
+    en: "Sub-categories",
+    hi: "उप-श्रेणियाँ",
+    od: "ଉପ-ଶ୍ରେଣୀ"
+  },
+  list_title_doctors: {
+    en: "Doctors",
+    hi: "डॉक्टर",
+    od: "ଡାକ୍ତର"
+  },
+  list_title_dates: {
+    en: "Available dates",
+    hi: "उपलब्ध तिथियाँ",
+    od: "ଉପଲବ୍ଧ ତାରିଖ"
+  },
+  list_title_slots: {
+    en: "Available slots",
+    hi: "उपलब्ध स्लॉट",
+    od: "ଉପଲବ୍ଧ ସ୍ଲଟ୍"
+  },
+  list_desc_fee: {
+    en: "Fee: {fee}",
+    hi: "शुल्क: {fee}",
+    od: "ଶୁଳ୍କ: {fee}"
+  },
+  list_desc_tap_select_time: {
+    en: "Tap to select this time",
+    hi: "यह समय चुनने के लिए टैप करें",
+    od: "ଏହି ସମୟ ବାଛିବାକୁ ଟାପ୍ କରନ୍ତୁ"
+  },
   no_slots: {
     en: "Sorry, no time slots available on this date. Please try another date.",
     hi: "क्षमा करें, इस तिथि पर कोई समय स्लॉट उपलब्ध नहीं है। कृपया दूसरी तिथि चुनें।",
@@ -274,6 +364,16 @@ const MESSAGES = {
     en: "\nConfirm this appointment?\n1. ✅ Yes\n2. ❌ No (start over from appointment type)",
     hi: "\nक्या आप इस अपॉइंटमेंट की पुष्टि करते हैं?\n1. ✅ हाँ\n2. ❌ नहीं (अपॉइंटमेंट प्रकार से फिर से शुरू करें)",
     od: "\nଏହି ଆପଏଣ୍ଟମେଣ୍ଟ ନିଶ୍ଚିତ କରନ୍ତି?\n1. ✅ ହଁ\n2. ❌ ନା (ଆପଏଣ୍ଟମେଣ୍ଟ ପ୍ରକାରରୁ ପୁନର୍ବାର ଆରମ୍ଭ)"
+  },
+  btn_yes: {
+    en: "✅ Yes",
+    hi: "✅ हाँ",
+    od: "✅ ହଁ"
+  },
+  btn_no: {
+    en: "❌ No",
+    hi: "❌ नहीं",
+    od: "❌ ନା"
   },
   confirm_action_text: {
     en: "Confirm this appointment",
@@ -320,6 +420,21 @@ const MESSAGES = {
     en: "How can we help you today?\n\n1. 🩺 Consultation\n2. 💉 Procedure\n3. ❓ General Query",
     hi: "आज हम आपकी कैसे मदद कर सकते हैं?\n\n1. 🩺 परामर्श\n2. 💉 प्रक्रिया\n3. ❓ सामान्य प्रश्न",
     od: "ଆଜି ଆମେ ଆପଣଙ୍କୁ କିପରି ସାହାଯ୍ୟ କରିପାରିବା?\n\n1. 🩺 ପରାମର୍ଶ\n2. 💉 ପ୍ରକ୍ରିୟା\n3. ❓ ସାଧାରଣ ପ୍ରଶ୍ନ"
+  },
+  btn_consultation: {
+    en: "🩺 Consultation",
+    hi: "🩺 परामर्श",
+    od: "🩺 ପରାମର୍ଶ"
+  },
+  btn_procedure: {
+    en: "💉 Procedure",
+    hi: "💉 प्रक्रिया",
+    od: "💉 ପ୍ରକ୍ରିୟା"
+  },
+  btn_general_query: {
+    en: "❓ General Query",
+    hi: "❓ सामान्य प्रश्न",
+    od: "❓ ସାଧାରଣ ପ୍ରଶ୍ନ"
   },
   invalid_visit_type: {
     en: "Please enter 1, 2, or 3.",
@@ -390,9 +505,9 @@ const DAY_NAMES = {
 
 // Gender map for number input
 const GENDER_MAP = {
-  en: { '1': 'Male', '2': 'Female', '3': 'Other' },
-  hi: { '1': 'पुरुष', '2': 'महिला', '3': 'अन्य' },
-  od: { '1': 'ପୁରୁଷ', '2': 'ମହିଳା', '3': 'ଅନ୍ୟ' }
+  en: { '1': 'Male', '2': 'Female' },
+  hi: { '1': 'पुरुष', '2': 'महिला' },
+  od: { '1': 'ପୁରୁଷ', '2': 'ମହିଳା' }
 };
 
 /**

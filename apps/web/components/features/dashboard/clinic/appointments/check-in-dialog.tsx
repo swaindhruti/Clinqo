@@ -28,13 +28,42 @@ export function CheckInDialog({ open, onOpenChange, onSuccess }: CheckInDialogPr
   const [successData, setSuccessData] = useState<CheckIn | null>(null);
   const [isScanning, setIsScanning] = useState(false);
   const qrCodeRef = useRef<Html5Qrcode | null>(null);
+  const scannerActiveRef = useRef(false);
+
+  const normalizeCheckInCode = (value: string) => {
+    const raw = value.trim();
+    if (!raw) return "";
+
+    try {
+      const url = new URL(raw);
+      const fromQuery = url.searchParams.get("data") || url.searchParams.get("check_in_code");
+      if (fromQuery) {
+        return fromQuery.trim().toUpperCase();
+      }
+
+      const lastPath = url.pathname.split("/").filter(Boolean).pop();
+      if (lastPath) {
+        return lastPath.trim().toUpperCase();
+      }
+    } catch {
+      // Not a URL; fall through to raw text handling.
+    }
+
+    return raw.toUpperCase();
+  };
 
   const handleCheckIn = async (checkInCode: string) => {
+    const normalizedCode = normalizeCheckInCode(checkInCode);
+    if (!normalizedCode) {
+      setError("Please scan a valid check-in QR code or enter a valid code.");
+      return;
+    }
+
     setIsLoading(true);
     setError(null);
     try {
       const result = await apiClient.post<CheckIn>("/checkins", {
-        check_in_code: checkInCode,
+        check_in_code: normalizedCode,
       });
       setSuccessData(result);
       if (onSuccess) onSuccess(result);
@@ -50,6 +79,7 @@ export function CheckInDialog({ open, onOpenChange, onSuccess }: CheckInDialogPr
 
   const startScanner = async () => {
     setIsScanning(true);
+    scannerActiveRef.current = true;
     setError(null);
     setSuccessData(null);
     
@@ -83,7 +113,7 @@ export function CheckInDialog({ open, onOpenChange, onSuccess }: CheckInDialogPr
             aspectRatio: 1.0,
           },
           (decodedText) => {
-            if (qrCodeRef.current?.isScanning) {
+            if (scannerActiveRef.current) {
               // We found a code! Stop immediately and process
               stopScanner().then(() => {
                 handleCheckIn(decodedText);
@@ -102,7 +132,7 @@ export function CheckInDialog({ open, onOpenChange, onSuccess }: CheckInDialogPr
                     qrbox: { width: 280, height: 280 }
                 },
                 (decodedText) => {
-                    if (qrCodeRef.current?.isScanning) {
+                    if (scannerActiveRef.current) {
                       stopScanner().then(() => {
                         handleCheckIn(decodedText);
                       });
@@ -120,13 +150,12 @@ export function CheckInDialog({ open, onOpenChange, onSuccess }: CheckInDialogPr
   };
 
   const stopScanner = async () => {
+    scannerActiveRef.current = false;
     if (qrCodeRef.current) {
-      if (qrCodeRef.current.isScanning) {
-        try {
-          await qrCodeRef.current.stop();
-        } catch (err) {
-          console.error("Failed to stop scanner", err);
-        }
+      try {
+        await qrCodeRef.current.stop();
+      } catch (err) {
+        console.error("Failed to stop scanner", err);
       }
       qrCodeRef.current = null;
     }
@@ -142,7 +171,8 @@ export function CheckInDialog({ open, onOpenChange, onSuccess }: CheckInDialogPr
     }
     
     return () => {
-      if (qrCodeRef.current && qrCodeRef.current.isScanning) {
+      scannerActiveRef.current = false;
+      if (qrCodeRef.current) {
         qrCodeRef.current.stop().then(() => {
           qrCodeRef.current = null;
           setIsScanning(false);

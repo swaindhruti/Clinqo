@@ -112,3 +112,19 @@ class DoctorService:
 
     async def delete_weekly_slot(self, doctor_id: UUID, slot_id: UUID) -> bool:
         return await self.repo.delete_weekly_slot(doctor_id, slot_id)
+
+    async def delete_doctor(self, doctor_id: UUID) -> bool:
+        doctor = await self.repo.get_by_id(doctor_id)
+        if not doctor:
+            return False
+
+        deps = await self.repo.get_delete_dependencies(doctor_id)
+        blocking = {k: v for k, v in deps.items() if v > 0}
+        if blocking:
+            details = ", ".join([f"{key}: {count}" for key, count in blocking.items()])
+            raise ValueError(f"Cannot delete doctor with linked records ({details}).")
+
+        deleted = await self.repo.delete_doctor(doctor_id)
+        if deleted:
+            logger.info("Doctor deleted", doctor_id=str(doctor_id))
+        return deleted

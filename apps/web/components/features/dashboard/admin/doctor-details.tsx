@@ -66,6 +66,7 @@ export function DoctorDetails({ doctorId, onBack }: DoctorDetailsProps) {
   const [slotMessage, setSlotMessage] = useState<string | null>(null);
   const [slotError, setSlotError] = useState<string | null>(null);
   const [deletingSlotId, setDeletingSlotId] = useState<string | null>(null);
+  const [isDeletingDoctor, setIsDeletingDoctor] = useState(false);
 
   // Fetch doctor details
   const { data: doctorDetails } = useQuery({
@@ -172,6 +173,22 @@ export function DoctorDetails({ doctorId, onBack }: DoctorDetailsProps) {
     }
   };
 
+  const handleDeleteDoctor = async () => {
+    if (!confirm("Are you sure you want to delete this doctor?")) return;
+
+    setIsDeletingDoctor(true);
+    try {
+      await apiClient.delete(`/doctors/${doctorId}`);
+      await queryClient.invalidateQueries({ queryKey: ["admin-doctors"] });
+      onBack();
+    } catch (error) {
+      const message = error instanceof Error ? error.message : "Failed to delete doctor.";
+      alert(message);
+    } finally {
+      setIsDeletingDoctor(false);
+    }
+  };
+
   return (
     <div className="flex flex-col gap-6 animate-in fade-in duration-500">
       {/* Header with back button */}
@@ -191,6 +208,17 @@ export function DoctorDetails({ doctorId, onBack }: DoctorDetailsProps) {
           <p className="text-sm text-neutral-500 mt-1">
             Manage doctor information, clinic assignment, and weekly schedules
           </p>
+        </div>
+        <div className="ml-auto">
+          <Button
+            variant="outline"
+            className="text-red-600 border-red-200 hover:text-red-700 hover:bg-red-50"
+            onClick={handleDeleteDoctor}
+            disabled={isDeletingDoctor}
+          >
+            <Trash2 className="h-4 w-4 mr-2" />
+            {isDeletingDoctor ? "Deleting..." : "Delete Doctor"}
+          </Button>
         </div>
       </div>
 

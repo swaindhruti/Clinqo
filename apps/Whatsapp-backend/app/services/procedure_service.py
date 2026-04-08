@@ -44,3 +44,6 @@ class ProcedureService:
             patient_id=patient_id,
             patient_phone=patient_phone,
         )
+
+    async def delete_booking(self, booking_id: UUID) -> bool:
+        return await self.repo.delete_booking(booking_id)

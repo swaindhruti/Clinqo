@@ -91,6 +91,31 @@ async def get_doctor(
     return doctor
 
 
+@router.delete(
+    "/{doctor_id}",
+    status_code=status.HTTP_204_NO_CONTENT,
+    responses={404: {"model": ErrorResponse}, 409: {"model": ErrorResponse}},
+)
+async def delete_doctor(
+    doctor_id: UUID,
+    service: DoctorService = Depends(get_doctor_service),
+    _auth=Depends(require_clinic_or_admin),
+):
+    """Delete a doctor if it has no blocking linked records."""
+    try:
+        deleted = await service.delete_doctor(doctor_id)
+        if not deleted:
+            raise HTTPException(
+                status_code=status.HTTP_404_NOT_FOUND,
+                detail={"error": "NotFound", "message": f"Doctor {doctor_id} not found"},
+            )
+    except ValueError as e:
+        raise HTTPException(
+            status_code=status.HTTP_409_CONFLICT,
+            detail={"error": "Conflict", "message": str(e)},
+        )
+
+
 @router.put(
     "/{doctor_id}/clinic/{clinic_id}",
     response_model=DoctorResponse,

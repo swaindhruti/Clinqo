@@ -1,8 +1,8 @@
 from typing import Optional, List
 from uuid import UUID
 from sqlalchemy.ext.asyncio import AsyncSession
-from sqlalchemy import select
-from app.models import Clinic
+from sqlalchemy import select, func, delete
+from app.models import Clinic, DoctorMaster, ProcedureBooking, User, ServiceCategory, GeneralQuery
 
 
 class ClinicRepository:
@@ -32,3 +32,36 @@ class ClinicRepository:
             select(Clinic).where(Clinic.specialty == specialty)
         )
         return list(result.scalars().all())
+
+    async def get_delete_dependencies(self, clinic_id: UUID) -> dict:
+        doctors_count = await self.db.scalar(
+            select(func.count(DoctorMaster.id)).where(DoctorMaster.clinic_id == clinic_id)
+        )
+        procedures_count = await self.db.scalar(
+            select(func.count(ProcedureBooking.id)).where(ProcedureBooking.clinic_id == clinic_id)
+        )
+        users_count = await self.db.scalar(
+            select(func.count(User.id)).where(User.clinic_id == clinic_id)
+        )
+        queries_count = await self.db.scalar(
+            select(func.count(GeneralQuery.id)).where(GeneralQuery.clinic_id == clinic_id)
+        )
+
+        return {
+            "doctors": int(doctors_count or 0),
+            "procedures": int(procedures_count or 0),
+            "users": int(users_count or 0),
+            "queries": int(queries_count or 0),
+        }
+
+    async def delete_by_id(self, clinic_id: UUID) -> bool:
+        clinic = await self.get_by_id(clinic_id)
+        if not clinic:
+            return False
+
+        await self.db.execute(
+            delete(ServiceCategory).where(ServiceCategory.clinic_id == clinic_id)
+        )
+        await self.db.delete(clinic)
+        await self.db.commit()
+        return True

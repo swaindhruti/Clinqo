@@ -77,6 +77,8 @@ export function ClinicDetails({ clinicId, onBack }: ClinicDetailsProps) {
   const [serviceMessage, setServiceMessage] = useState<string | null>(null);
   const [serviceError, setServiceError] = useState<string | null>(null);
   const [deletingServiceId, setDeletingServiceId] = useState<string | null>(null);
+  const [isDeletingClinic, setIsDeletingClinic] = useState(false);
+  const [deletingSlotId, setDeletingSlotId] = useState<string | null>(null);
 
   // Fetch clinic details
   const { data: clinicDetails } = useQuery({
@@ -182,6 +184,38 @@ export function ClinicDetails({ clinicId, onBack }: ClinicDetailsProps) {
     }
   };
 
+  const handleDeleteClinic = async () => {
+    if (!confirm("Are you sure you want to delete this clinic?")) return;
+
+    setIsDeletingClinic(true);
+    try {
+      await apiClient.delete(`/clinics/${clinicId}`);
+      await queryClient.invalidateQueries({ queryKey: ["admin-clinics"] });
+      onBack();
+    } catch (error) {
+      const message = error instanceof Error ? error.message : "Failed to delete clinic.";
+      alert(message);
+    } finally {
+      setIsDeletingClinic(false);
+    }
+  };
+
+  const handleDeleteSlot = async (doctorId: string, slotId: string) => {
+    if (!confirm("Are you sure you want to delete this time slot?")) return;
+
+    setDeletingSlotId(slotId);
+    try {
+      await apiClient.delete(`/doctors/${doctorId}/weekly-slots/${slotId}`);
+      await queryClient.invalidateQueries({ queryKey: ["clinic-weekly-slots", clinicId] });
+      await queryClient.invalidateQueries({ queryKey: ["doctor-weekly-slots", doctorId] });
+    } catch (error) {
+      const message = error instanceof Error ? error.message : "Failed to delete time slot.";
+      alert(message);
+    } finally {
+      setDeletingSlotId(null);
+    }
+  };
+
   return (
     <div className="flex flex-col gap-6 animate-in fade-in duration-500">
       {/* Header with back button */}
@@ -201,6 +235,17 @@ export function ClinicDetails({ clinicId, onBack }: ClinicDetailsProps) {
           <p className="text-sm text-neutral-500 mt-1">
             Manage clinic information, services, and doctors
           </p>
+        </div>
+        <div className="ml-auto">
+          <Button
+            variant="outline"
+            className="text-red-600 border-red-200 hover:text-red-700 hover:bg-red-50"
+            onClick={handleDeleteClinic}
+            disabled={isDeletingClinic}
+          >
+            <Trash2 className="h-4 w-4 mr-2" />
+            {isDeletingClinic ? "Deleting..." : "Delete Clinic"}
+          </Button>
         </div>
       </div>
 
@@ -451,9 +496,9 @@ export function ClinicDetails({ clinicId, onBack }: ClinicDetailsProps) {
                                       (a, b) =>
                                         a.start_time.localeCompare(b.start_time)
                                     )
-                                    .map((slot, idx) => (
+                                    .map((slot) => (
                                       <div
-                                        key={idx}
+                                        key={slot.id}
                                         className="flex items-center justify-between text-xs text-neutral-600 bg-white p-2 rounded"
                                       >
                                         <span>
@@ -470,6 +515,15 @@ export function ClinicDetails({ clinicId, onBack }: ClinicDetailsProps) {
                                             <Users className="h-3 w-3" />
                                             {slot.max_patients}
                                           </span>
+                                          <Button
+                                            variant="ghost"
+                                            size="icon"
+                                            className="h-6 w-6 text-red-600 hover:text-red-700 hover:bg-red-50"
+                                            onClick={() => handleDeleteSlot(doctor.id, slot.id)}
+                                            disabled={deletingSlotId === slot.id}
+                                          >
+                                            <Trash2 className="h-3.5 w-3.5" />
+                                          </Button>
                                         </div>
                                       </div>
                                     ))}

@@ -12,6 +12,7 @@ import {
   CheckCircle2,
   XCircle,
   Eye,
+  Trash2,
 } from "lucide-react";
 import { DataTable } from "@/components/ui/data-table";
 import { ColumnDef } from "@tanstack/react-table";
@@ -81,6 +82,8 @@ export function ClinicManagement() {
   const [isCreatingCredential, setIsCreatingCredential] = useState(false);
   const [credentialMessage, setCredentialMessage] = useState<string | null>(null);
   const [credentialError, setCredentialError] = useState<string | null>(null);
+  const [deletingClinicId, setDeletingClinicId] = useState<string | null>(null);
+  const [deletingServiceId, setDeletingServiceId] = useState<string | null>(null);
 
   const { data: liveClinics } = useQuery({
     queryKey: ["admin-clinics"],
@@ -176,6 +179,41 @@ export function ClinicManagement() {
       setCredentialError(message);
     } finally {
       setIsCreatingCredential(false);
+    }
+  };
+
+  const handleDeleteClinic = async (clinicId: string) => {
+    if (!confirm("Are you sure you want to delete this clinic?")) return;
+
+    setDeletingClinicId(clinicId);
+    try {
+      await apiClient.delete(`/clinics/${clinicId}`);
+      if (selectedClinicId === clinicId) {
+        setSelectedClinicId("");
+      }
+      await queryClient.invalidateQueries({ queryKey: ["admin-clinics"] });
+      await queryClient.invalidateQueries({ queryKey: ["clinic-services"] });
+    } catch (error) {
+      const message = error instanceof Error ? error.message : "Failed to delete clinic.";
+      alert(message);
+    } finally {
+      setDeletingClinicId(null);
+    }
+  };
+
+  const handleDeleteServiceCategory = async (serviceId: string) => {
+    if (!selectedClinicId) return;
+    if (!confirm("Delete this service category?")) return;
+
+    setDeletingServiceId(serviceId);
+    try {
+      await apiClient.delete(`/clinics/${selectedClinicId}/services/${serviceId}`);
+      await queryClient.invalidateQueries({ queryKey: ["clinic-services", selectedClinicId] });
+    } catch (error) {
+      const message = error instanceof Error ? error.message : "Failed to delete service category.";
+      alert(message);
+    } finally {
+      setDeletingServiceId(null);
     }
   };
 
@@ -277,6 +315,15 @@ export function ClinicManagement() {
             )}
             <Button variant="ghost" size="icon" className="h-8 w-8">
               <MoreHorizontal className="h-4 w-4 text-neutral-500" />
+            </Button>
+            <Button
+              variant="ghost"
+              size="icon"
+              className="h-8 w-8 text-red-600 hover:text-red-700 hover:bg-red-50"
+              onClick={() => handleDeleteClinic(clinic.id)}
+              disabled={deletingClinicId === clinic.id}
+            >
+              <Trash2 className="h-4 w-4" />
             </Button>
           </div>
         );
@@ -455,10 +502,21 @@ export function ClinicManagement() {
               {consultationServices.length > 0 ? (
                 <ul className="space-y-1 text-sm text-neutral-700">
                   {consultationServices.map((service) => (
-                    <li key={service.id}>
-                      {service.emoji ? `${service.emoji} ` : ""}
-                      {service.name}
-                      {service.price ? ` — ${service.price}` : ""}
+                    <li key={service.id} className="flex items-center justify-between gap-2">
+                      <span>
+                        {service.emoji ? `${service.emoji} ` : ""}
+                        {service.name}
+                        {service.price ? ` — ${service.price}` : ""}
+                      </span>
+                      <Button
+                        variant="ghost"
+                        size="icon"
+                        className="h-6 w-6 text-red-600 hover:text-red-700 hover:bg-red-50"
+                        onClick={() => handleDeleteServiceCategory(service.id)}
+                        disabled={deletingServiceId === service.id}
+                      >
+                        <Trash2 className="h-3.5 w-3.5" />
+                      </Button>
                     </li>
                   ))}
                 </ul>
@@ -472,10 +530,21 @@ export function ClinicManagement() {
               {procedureServices.length > 0 ? (
                 <ul className="space-y-1 text-sm text-neutral-700">
                   {procedureServices.map((service) => (
-                    <li key={service.id}>
-                      {service.emoji ? `${service.emoji} ` : ""}
-                      {service.name}
-                      {service.price ? ` — ${service.price}` : ""}
+                    <li key={service.id} className="flex items-center justify-between gap-2">
+                      <span>
+                        {service.emoji ? `${service.emoji} ` : ""}
+                        {service.name}
+                        {service.price ? ` — ${service.price}` : ""}
+                      </span>
+                      <Button
+                        variant="ghost"
+                        size="icon"
+                        className="h-6 w-6 text-red-600 hover:text-red-700 hover:bg-red-50"
+                        onClick={() => handleDeleteServiceCategory(service.id)}
+                        disabled={deletingServiceId === service.id}
+                      >
+                        <Trash2 className="h-3.5 w-3.5" />
+                      </Button>
                     </li>
                   ))}
                 </ul>

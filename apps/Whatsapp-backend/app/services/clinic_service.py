@@ -26,3 +26,19 @@ class ClinicService:
         if specialty:
             return await self.repo.list_by_specialty(specialty)
         return await self.repo.list_all()
+
+    async def delete_clinic(self, clinic_id: UUID) -> bool:
+        clinic = await self.repo.get_by_id(clinic_id)
+        if not clinic:
+            return False
+
+        deps = await self.repo.get_delete_dependencies(clinic_id)
+        blocking = {k: v for k, v in deps.items() if v > 0}
+        if blocking:
+            details = ", ".join([f"{key}: {count}" for key, count in blocking.items()])
+            raise ValueError(f"Cannot delete clinic with linked records ({details}).")
+
+        deleted = await self.repo.delete_by_id(clinic_id)
+        if deleted:
+            logger.info("Clinic deleted", clinic_id=str(clinic_id))
+        return deleted

@@ -5,7 +5,7 @@ import { useQuery } from "@tanstack/react-query";
 import { useQueryClient } from "@tanstack/react-query";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Button } from "@/components/ui/button";
-import { Plus, MoreHorizontal, UserCheck, UserX, Eye } from "lucide-react";
+import { Plus, MoreHorizontal, UserCheck, UserX, Eye, Trash2 } from "lucide-react";
 import { DataTable } from "@/components/ui/data-table";
 import { ColumnDef } from "@tanstack/react-table";
 import { apiClient } from "@/lib/api-client";
@@ -143,6 +143,7 @@ export function DoctorManagement() {
   const [isCreatingCredential, setIsCreatingCredential] = useState(false);
   const [credentialMessage, setCredentialMessage] = useState<string | null>(null);
   const [credentialError, setCredentialError] = useState<string | null>(null);
+  const [deletingDoctorId, setDeletingDoctorId] = useState<string | null>(null);
 
   const { data: liveDoctors } = useQuery({
     queryKey: ["admin-doctors"],
@@ -254,6 +255,25 @@ export function DoctorManagement() {
     }
   };
 
+  const handleDeleteDoctor = async (doctorId: string) => {
+    if (!confirm("Are you sure you want to delete this doctor?")) return;
+
+    setDeletingDoctorId(doctorId);
+    try {
+      await apiClient.delete(`/doctors/${doctorId}`);
+      if (selectedDoctorId === doctorId) {
+        setSelectedDoctorId("");
+      }
+      await queryClient.invalidateQueries({ queryKey: ["admin-doctors"] });
+      await queryClient.invalidateQueries({ queryKey: ["doctor-weekly-slots"] });
+    } catch (error) {
+      const message = error instanceof Error ? error.message : "Failed to delete doctor.";
+      alert(message);
+    } finally {
+      setDeletingDoctorId(null);
+    }
+  };
+
   // Create columns with access to state
   const columns: ColumnDef<Doctor>[] = [
     {
@@ -346,6 +366,15 @@ export function DoctorManagement() {
             )}
             <Button variant="ghost" size="icon" className="h-8 w-8">
               <MoreHorizontal className="h-4 w-4 text-neutral-500" />
+            </Button>
+            <Button
+              variant="ghost"
+              size="icon"
+              className="h-8 w-8 text-red-600 hover:text-red-700 hover:bg-red-50"
+              onClick={() => handleDeleteDoctor(doctor.id)}
+              disabled={deletingDoctorId === doctor.id}
+            >
+              <Trash2 className="h-4 w-4" />
             </Button>
           </div>
         );

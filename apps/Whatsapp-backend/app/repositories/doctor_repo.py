@@ -2,9 +2,9 @@ from typing import Optional, List
 from uuid import UUID
 from datetime import date
 from sqlalchemy.ext.asyncio import AsyncSession
-from sqlalchemy import select, and_
+from sqlalchemy import select, and_, func, delete
 from sqlalchemy.orm import joinedload
-from app.models import DoctorMaster, DoctorDailyAvailability, DoctorDailyCapacity, DoctorWeeklySlot
+from app.models import DoctorMaster, DoctorDailyAvailability, DoctorDailyCapacity, DoctorWeeklySlot, Appointment, QueueEntry, User
 
 
 class DoctorRepository:
@@ -194,5 +194,39 @@ class DoctorRepository:
             return False
 
         await self.db.delete(slot)
+        await self.db.commit()
+        return True
+
+    async def get_delete_dependencies(self, doctor_id: UUID) -> dict:
+        appointments_count = await self.db.scalar(
+            select(func.count(Appointment.id)).where(Appointment.doctor_id == doctor_id)
+        )
+        queue_entries_count = await self.db.scalar(
+            select(func.count(QueueEntry.id)).where(QueueEntry.doctor_id == doctor_id)
+        )
+
+        return {
+            "appointments": int(appointments_count or 0),
+            "queue_entries": int(queue_entries_count or 0),
+        }
+
+    async def delete_doctor(self, doctor_id: UUID) -> bool:
+        doctor = await self.get_by_id(doctor_id)
+        if not doctor:
+            return False
+
+        await self.db.execute(
+            delete(User).where(User.doctor_id == doctor_id)
+        )
+        await self.db.execute(
+            delete(DoctorDailyAvailability).where(DoctorDailyAvailability.doctor_id == doctor_id)
+        )
+        await self.db.execute(
+            delete(DoctorDailyCapacity).where(DoctorDailyCapacity.doctor_id == doctor_id)
+        )
+        await self.db.execute(
+            delete(DoctorWeeklySlot).where(DoctorWeeklySlot.doctor_id == doctor_id)
+        )
+        await self.db.delete(doctor)
         await self.db.commit()
         return True

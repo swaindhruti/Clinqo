@@ -2,7 +2,7 @@
  * chatbot.js - Core state machine orchestrator (v6)
  * 
  * Entry: QR scan → clinic verified → booking flow
- *        "Hi" → menu (view upcoming/past appointments and procedures)
+ *        "Hi" → menu (view upcoming appointments and procedures)
  */
 
 const { sendWhatsAppMessage, sendWhatsAppButtons, sendWhatsAppList } = require('./services/whatsapp');
@@ -11,7 +11,7 @@ const {
   getSession, saveSession, createSession,
   clearUserData, resetBookingFields, redisClient
 } = require('./services/session');
-const { fetchClinicById, searchPatientByPhone, fetchAppointmentsByPatient, fetchProcedureBookingsByPatient } = require('./services/api');
+const { fetchClinicById, searchPatientByPhone, fetchAppointmentsByPatient } = require('./services/api');
 const { handlePatientCreation, handleRepeatPatientLookup } = require('./handlers/patient');
 const {
   handleShowSubCategories, sendDetailQuestion,
@@ -44,14 +44,12 @@ async function sendMainMenu(waId, lang = 'en') {
     await sendWhatsAppList(
       waId,
       getMessage(lang, 'menu_prompt'),
-      'Open menu',
+      getMessage(lang, 'list_open_menu'),
       [{
-        title: 'Main Menu',
+        title: getMessage(lang, 'main_menu_title'),
         rows: [
-          { id: '1', title: 'Upcoming appointments', description: 'View upcoming appointments' },
-          { id: '2', title: 'Past appointments', description: 'View recent appointments' },
-          { id: '3', title: 'Upcoming procedures', description: 'View upcoming procedures' },
-          { id: '4', title: 'Past procedures', description: 'View recent procedures' },
+          { id: '1', title: getMessage(lang, 'menu_upcoming_appointments_title'), description: getMessage(lang, 'menu_upcoming_appointments_desc') },
+          { id: '2', title: getMessage(lang, 'menu_upcoming_procedures_title'), description: getMessage(lang, 'menu_upcoming_procedures_desc') },
         ]
       }],
     );
@@ -82,12 +80,27 @@ async function sendPatientTypeMenu(waId, lang) {
       waId,
       getMessage(lang, 'patient_type_prompt'),
       [
-        { id: '1', title: '🆕 New Patient' },
-        { id: '2', title: '🔄 Returning' },
+        { id: '1', title: getMessage(lang, 'btn_new_patient') },
+        { id: '2', title: getMessage(lang, 'btn_returning_patient') },
       ]
     );
   } catch (_err) {
     await sendWhatsAppMessage(waId, getMessage(lang, 'patient_type_prompt'));
+  }
+}
+
+async function sendGenderMenu(waId, lang) {
+  try {
+    await sendWhatsAppButtons(
+      waId,
+      getMessage(lang, 'ask_sex'),
+      [
+        { id: '1', title: getMessage(lang, 'gender_male') },
+        { id: '2', title: getMessage(lang, 'gender_female') },
+      ]
+    );
+  } catch (_err) {
+    await sendWhatsAppMessage(waId, getMessage(lang, 'ask_sex'));
   }
 }
 
@@ -97,9 +110,9 @@ async function sendVisitTypeMenu(waId, lang) {
       waId,
       getMessage(lang, 'visit_type_prompt'),
       [
-        { id: '1', title: '🩺 Consultation' },
-        { id: '2', title: '💉 Procedure' },
-        { id: '3', title: '❓ General Query' },
+        { id: '1', title: getMessage(lang, 'btn_consultation') },
+        { id: '2', title: getMessage(lang, 'btn_procedure') },
+        { id: '3', title: getMessage(lang, 'btn_general_query') },
       ]
     );
   } catch (_err) {
@@ -171,14 +184,14 @@ async function processIncomingMessage(messageData) {
           // "Hi" or generic message — show menu
           session.state = 'MENU';
           await saveSession(waId, session);
-          await sendMainMenu(waId, 'en');
+          await sendMainMenu(waId, lang);
         }
         return { status: 'init_handled' };
       }
 
-      // ==================== MENU — View upcoming/past appointments/procedures ====================
+      // ==================== MENU — View upcoming appointments/procedures ====================
       case 'MENU': {
-        if (!['1', '2', '3', '4'].includes(messageText)) {
+        if (!['1', '2'].includes(messageText)) {
           // Check if this is a QR message that came while in MENU state
           const match = messageText.match(CLINIC_ID_REGEX);
           if (match) {
@@ -195,88 +208,52 @@ async function processIncomingMessage(messageData) {
               return { status: 'qr_from_menu' };
             }
           }
-          await sendWhatsAppMessage(waId, getMessage('en', 'invalid_menu'));
-          await sendMainMenu(waId, 'en');
+          await sendWhatsAppMessage(waId, getMessage(lang, 'invalid_menu'));
+          await sendMainMenu(waId, lang);
           return { status: 'invalid_input' };
         }
         // Search patient by phone
         const patient = await searchPatientByPhone(waId);
         if (!patient) {
-          await sendWhatsAppMessage(waId, getMessage('en', 'no_patient_found_menu'));
+          await sendWhatsAppMessage(waId, getMessage(lang, 'no_patient_found_menu'));
           await clearUserData(waId);
           return { status: 'no_patient' };
         }
-        const appts = await fetchAppointmentsByPatient(patient.id, 10);
-        const procedureBookings = await fetchProcedureBookingsByPatient(patient.id, waId);
+        const appts = await fetchAppointmentsByPatient(patient.id, 50);
         const today = new Date().toISOString().split('T')[0];
 
-        const isProcedureMenu = messageText === '3' || messageText === '4';
+        const isProcedureMenu = messageText === '2';
         const selectedVisitType = isProcedureMenu ? 'procedure' : 'consultation';
 
-        if (messageText === '1' || messageText === '3') {
-          // Upcoming (limit to 5)
-          const upcoming = isProcedureMenu
-            ? (procedureBookings || []).filter((p) => p.preferred_date >= today && p.status !== 'completed' && p.status !== 'cancelled').slice(0, 5)
-            : (appts || []).filter((a) => a.visit_type === selectedVisitType && a.date >= today && a.status === 'booked').slice(0, 5);
-          if (upcoming.length === 0) {
-            await sendWhatsAppMessage(
-              waId,
-              getMessage('en', isProcedureMenu ? 'no_upcoming_procedures' : 'no_upcoming')
-            );
-          } else {
-            let msg = getMessage('en', isProcedureMenu ? 'upcoming_procedures_header' : 'upcoming_header');
-            upcoming.forEach((a, idx) => {
-              if (isProcedureMenu) {
-                msg += getMessage('en', 'procedure_list_item', {
-                  index: String(idx + 1),
-                  sub_category: a.sub_category || 'Procedure',
-                  date: a.preferred_date,
-                  status: a.status,
-                }) + '\n';
-              } else {
-                msg += getMessage('en', 'appt_list_item', {
-                  index: String(idx + 1), doctor: a.doctor_name || 'N/A',
-                  date: a.date, status: a.status
-                }) + '\n';
-              }
-            });
-            msg += getMessage('en', 'view_done');
-            await sendWhatsAppMessage(waId, msg);
-          }
+        const upcoming = (appts || [])
+          .filter((a) => a.visit_type === selectedVisitType && a.date >= today && a.status === 'booked')
+          .sort((a, b) => {
+            if (a.date !== b.date) return a.date.localeCompare(b.date);
+            return (a.slot || 0) - (b.slot || 0);
+          })
+          .slice(0, 5);
+
+        if (upcoming.length === 0) {
+          await sendWhatsAppMessage(
+            waId,
+            getMessage(lang, isProcedureMenu ? 'no_upcoming_procedures' : 'no_upcoming')
+          );
         } else {
-          // Past 5
-          const past = isProcedureMenu
-            ? (procedureBookings || [])
-              .filter((p) => p.preferred_date < today || p.status === 'completed' || p.status === 'cancelled')
-              .slice(0, 5)
-            : (appts || [])
-              .filter((a) => a.visit_type === selectedVisitType && (a.date < today || a.status !== 'booked'))
-              .slice(0, 5);
-          if (past.length === 0) {
-            await sendWhatsAppMessage(
-              waId,
-              getMessage('en', isProcedureMenu ? 'no_past_procedures' : 'no_past')
-            );
-          } else {
-            let msg = getMessage('en', isProcedureMenu ? 'past_procedures_header' : 'past_header');
-            past.forEach((a, idx) => {
-              if (isProcedureMenu) {
-                msg += getMessage('en', 'procedure_list_item', {
-                  index: String(idx + 1),
-                  sub_category: a.sub_category || 'Procedure',
-                  date: a.preferred_date,
-                  status: a.status,
-                }) + '\n';
-              } else {
-                msg += getMessage('en', 'appt_list_item', {
-                  index: String(idx + 1), doctor: a.doctor_name || 'N/A',
-                  date: a.date, status: a.status
-                }) + '\n';
-              }
-            });
-            msg += getMessage('en', 'view_done');
-            await sendWhatsAppMessage(waId, msg);
-          }
+          let msg = getMessage(lang, isProcedureMenu ? 'upcoming_procedures_header' : 'upcoming_header');
+          upcoming.forEach((a, idx) => {
+            const checkInCode = a.check_in_code || 'N/A';
+            const qrUrl = a.check_in_code
+              ? `https://api.qrserver.com/v1/create-qr-code/?size=300x300&data=${encodeURIComponent(a.check_in_code)}`
+              : 'N/A';
+            msg += getMessage(lang, 'upcoming_with_code_item', {
+              index: String(idx + 1),
+              date: a.date,
+              time: a.slot_label || a.time_slot || 'N/A',
+              code: checkInCode,
+              qr_url: qrUrl,
+            }) + '\n';
+          });
+          await sendWhatsAppMessage(waId, msg);
         }
         await clearUserData(waId);
         return { status: 'menu_handled' };
@@ -334,7 +311,7 @@ async function processIncomingMessage(messageData) {
         session.age = messageText;
         session.state = 'SEX';
         await saveSession(waId, session);
-        await sendWhatsAppMessage(waId, getMessage(lang, 'ask_sex'));
+        await sendGenderMenu(waId, lang);
         return { status: 'age_collected' };
       }
 
@@ -342,6 +319,7 @@ async function processIncomingMessage(messageData) {
         const gender = getGender(lang, messageText);
         if (!gender) {
           await sendWhatsAppMessage(waId, getMessage(lang, 'invalid_sex'));
+          await sendGenderMenu(waId, lang);
           return { status: 'invalid_input' };
         }
         session.sex = gender;
@@ -407,13 +385,9 @@ async function processIncomingMessage(messageData) {
           if (session.detail_question_index < questions.length) {
             await sendDetailQuestion(waId, session, lang);
           } else {
-            session.state = session.visit_type === 'PROCEDURE' ? 'SHOW_DATES' : 'SHOW_DOCTORS';
+            session.state = 'SHOW_DOCTORS';
             await saveSession(waId, session);
-            if (session.visit_type === 'PROCEDURE') {
-              await handleShowDates(waId, session, lang);
-            } else {
-              await handleShowDoctors(waId, session, lang);
-            }
+            await handleShowDoctors(waId, session, lang);
           }
         }
         return { status: 'detail_collected', index: qIdx };

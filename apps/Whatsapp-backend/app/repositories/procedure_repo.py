@@ -61,3 +61,12 @@ class ProcedureRepository:
             ).where(ProcedureBooking.id == booking_id)
         )
         return result.scalar_one_or_none()
+
+    async def delete_booking(self, booking_id: UUID) -> bool:
+        booking = await self.get_by_id(booking_id)
+        if not booking:
+            return False
+
+        await self.db.delete(booking)
+        await self.db.commit()
+        return True
