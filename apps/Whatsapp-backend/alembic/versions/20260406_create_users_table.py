@@ -17,7 +17,7 @@ branch_labels = None
 depends_on = None
 
 
-user_role_enum = postgresql.ENUM("admin", "clinic", "doctor", name="userrole", create_type=False)
+user_role_enum = postgresql.ENUM("ADMIN", "CLINIC", "DOCTOR", name="userrole", create_type=False)
 
 
 def upgrade() -> None:
@@ -25,7 +25,7 @@ def upgrade() -> None:
         """
         DO $$
         BEGIN
-            CREATE TYPE userrole AS ENUM ('admin', 'clinic', 'doctor');
+            CREATE TYPE userrole AS ENUM ('ADMIN', 'CLINIC', 'DOCTOR');
         EXCEPTION
             WHEN duplicate_object THEN NULL;
         END $$;

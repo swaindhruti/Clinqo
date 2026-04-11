@@ -27,11 +27,12 @@ class AuthService:
                        clinic_id: Optional[UUID] = None,
                        doctor_id: Optional[UUID] = None):
         """Register a new user."""
+        normalized_role = role.strip().lower()
         existing = await self.user_repo.get_by_email(email)
         if existing:
             raise ValueError("Email already registered")
 
-        if role == "clinic":
+        if normalized_role == "clinic":
             if not clinic_id:
                 raise ValueError("clinic_id is required for clinic credentials")
             clinic = await self.clinic_repo.get_by_id(clinic_id)
@@ -39,7 +40,7 @@ class AuthService:
                 raise ValueError("Selected clinic does not exist")
             doctor_id = None
 
-        elif role == "doctor":
+        elif normalized_role == "doctor":
             if not doctor_id:
                 raise ValueError("doctor_id is required for doctor credentials")
             doctor = await self.doctor_repo.get_by_id(doctor_id)
@@ -52,7 +53,7 @@ class AuthService:
             if not clinic_id and doctor.clinic_id:
                 clinic_id = doctor.clinic_id
 
-        elif role == "admin":
+        elif normalized_role == "admin":
             clinic_id = None
             doctor_id = None
         else:
@@ -61,11 +62,11 @@ class AuthService:
         user = await self.user_repo.create({
             "email": email,
             "hashed_password": hash_password(password),
-            "role": role,
+            "role": normalized_role,
             "clinic_id": clinic_id,
             "doctor_id": doctor_id,
         })
-        logger.info("User registered", user_id=str(user.id), email=email, role=role)
+        logger.info("User registered", user_id=str(user.id), email=email, role=normalized_role)
         return user
 
     async def login(self, email: str, password: str):
@@ -101,13 +102,15 @@ class AuthService:
         clinic_id: Optional[UUID] = None,
         doctor_id: Optional[UUID] = None,
     ):
-        if role == "clinic":
+        normalized_role = role.strip().lower()
+
+        if normalized_role == "clinic":
             if not clinic_id:
                 raise ValueError("clinic_id is required for clinic credential updates")
             target_user = await self.user_repo.get_by_clinic_id(clinic_id)
             if not target_user:
                 raise ValueError("No clinic credentials found for this clinic")
-        elif role == "doctor":
+        elif normalized_role == "doctor":
             if not doctor_id:
                 raise ValueError("doctor_id is required for doctor credential updates")
             target_user = await self.user_repo.get_by_doctor_id(doctor_id)
@@ -127,7 +130,7 @@ class AuthService:
                 "hashed_password": hash_password(password),
             },
         )
-        logger.info("Emergency credentials updated", user_id=str(updated_user.id), role=role)
+        logger.info("Emergency credentials updated", user_id=str(updated_user.id), role=normalized_role)
         return updated_user
 
     async def get_user_by_id(self, user_id: UUID):
