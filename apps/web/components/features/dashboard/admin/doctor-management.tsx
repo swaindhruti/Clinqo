@@ -24,55 +24,6 @@ export type Doctor = {
   joinDate: string;
 };
 
-// Dummy Data
-const approvedDoctors: Doctor[] = [
-  {
-    id: "DOC-2041",
-    name: "Dr. Sarah Chen",
-    specialty: "Cardiology",
-    clinicName: "—",
-    email: "sarah.chen@example.com",
-    status: "approved",
-    joinDate: "Oct 12, 2023",
-  },
-  {
-    id: "DOC-2042",
-    name: "Dr. Marcus Johnson",
-    specialty: "Neurology",
-    clinicName: "—",
-    email: "m.johnson@example.com",
-    status: "approved",
-    joinDate: "Nov 05, 2023",
-  },
-  {
-    id: "DOC-2045",
-    name: "Dr. Emily Rostova",
-    specialty: "Pediatrics",
-    clinicName: "—",
-    email: "emily.r@example.com",
-    status: "approved",
-    joinDate: "Jan 18, 2024",
-  },
-  {
-    id: "DOC-2051",
-    name: "Dr. James Wilson",
-    specialty: "Orthopedics",
-    clinicName: "—",
-    email: "j.wilson@example.com",
-    status: "approved",
-    joinDate: "Feb 22, 2024",
-  },
-  {
-    id: "DOC-2063",
-    name: "Dr. Anita Patel",
-    specialty: "Dermatology",
-    clinicName: "—",
-    email: "apatel@example.com",
-    status: "approved",
-    joinDate: "Mar 10, 2024",
-  },
-];
-
 const disabledDoctors: Doctor[] = [
   {
     id: "DOC-1092",
@@ -682,7 +633,7 @@ export function DoctorManagement() {
         <TabsContent value="approved" className="mt-0 outline-none">
           <DataTable
             columns={columns}
-            data={approvedFromApi.length > 0 ? approvedFromApi : approvedDoctors}
+            data={approvedFromApi}
             searchKey="name"
             searchPlaceholder="Search by doctor name or code..."
             filterColumn="specialty"

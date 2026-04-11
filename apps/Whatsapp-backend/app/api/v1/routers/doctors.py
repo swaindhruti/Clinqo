@@ -53,23 +53,24 @@ async def list_doctors(
     service: DoctorService = Depends(get_doctor_service)
 ):
     """List all doctors, optionally filtered by date, specialty, or clinic."""
-    if date:
-        doctors_with_availability = await service.list_doctors_with_availability(date)
-        result = []
-        for doctor in doctors_with_availability:
-            doc = doctor["doctor"]
-            if specialty and doc.specialty != specialty:
-                continue
-            if clinic_id and doc.clinic_id != clinic_id:
-                continue
-            result.append({
-                **doc.__dict__,
-                "is_available": doctor["is_available"]
-            })
-        return result
-    else:
+    try:
+        if date:
+            doctors_with_availability = await service.list_doctors_with_availability(date)
+            result = []
+            for doctor in doctors_with_availability:
+                doc = doctor["doctor"]
+                if specialty and doc.specialty != specialty:
+                    continue
+                if clinic_id and doc.clinic_id != clinic_id:
+                    continue
+                result.append(doc)
+            return result
+
         doctors = await service.list_doctors(specialty=specialty, clinic_id=clinic_id)
         return doctors
+    except Exception as e:
+        logger.error("Failed to list doctors", error=str(e))
+        return []
 
 
 @router.get(
