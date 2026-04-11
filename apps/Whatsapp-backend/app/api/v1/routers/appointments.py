@@ -137,42 +137,46 @@ async def list_all_appointments(
     limit: Optional[int] = Query(None, description="Max number of results to return"),
 ):
     """List all appointments across all doctors, optionally filtered by date, patient, or limited"""
-    appointments = await service.list_all_appointments(
-        date,
-        from_date,
-        patient_id,
-        patient_phone,
-        visit_type,
-        clinic_id,
-        upcoming_only,
-    )
-    
-    result = []
-    for app in appointments:
-        app_dict = {
-            "id": app.id,
-            "patient_id": app.patient_id,
-            "doctor_id": app.doctor_id,
-            "date": app.date,
-            "slot": app.slot,
-            "time_slot": app.time_slot,
-            "slot_label": app.slot_label,
-            "visit_type": app.visit_type,
-            "status": app.status,
-            "check_in_code": app.check_in_code,
-            "created_at": app.created_at,
-            "updated_at": app.updated_at,
-            "patient": app.patient,
-            "doctor": app.doctor,
-            "patient_name": app.patient.name if app.patient else None,
-            "doctor_name": app.doctor.name if getattr(app, 'doctor', None) else None
-        }
-        result.append(app_dict)
-    
-    if limit and limit > 0:
-        result = result[:limit]
-    
-    return result
+    try:
+        appointments = await service.list_all_appointments(
+            date,
+            from_date,
+            patient_id,
+            patient_phone,
+            visit_type,
+            clinic_id,
+            upcoming_only,
+        )
+
+        result = []
+        for app in appointments:
+            app_dict = {
+                "id": app.id,
+                "patient_id": app.patient_id,
+                "doctor_id": app.doctor_id,
+                "date": app.date,
+                "slot": app.slot,
+                "time_slot": app.time_slot,
+                "slot_label": app.slot_label,
+                "visit_type": app.visit_type.value if hasattr(app.visit_type, "value") else app.visit_type,
+                "status": app.status.value if hasattr(app.status, "value") else app.status,
+                "check_in_code": app.check_in_code,
+                "created_at": app.created_at,
+                "updated_at": app.updated_at,
+                "patient": app.patient,
+                "doctor": app.doctor,
+                "patient_name": app.patient.name if app.patient else None,
+                "doctor_name": app.doctor.name if getattr(app, "doctor", None) else None,
+            }
+            result.append(app_dict)
+
+        if limit and limit > 0:
+            result = result[:limit]
+
+        return result
+    except Exception as e:
+        logger.error("Failed to list appointments", error=str(e))
+        return []
 
 
 @router.get(
@@ -186,31 +190,35 @@ async def list_doctor_appointments(
     visit_type: Optional[str] = Query(None, description="consultation or procedure"),
 ):
     """List all appointments for a doctor, optionally filtered by date"""
-    appointments = await service.list_appointments_by_doctor_date(doctor_id, date, visit_type)
-    
-    result = []
-    for app in appointments:
-        app_dict = {
-            "id": app.id,
-            "patient_id": app.patient_id,
-            "doctor_id": app.doctor_id,
-            "date": app.date,
-            "slot": app.slot,
-            "time_slot": app.time_slot,
-            "slot_label": app.slot_label,
-            "visit_type": app.visit_type,
-            "status": app.status,
-            "check_in_code": app.check_in_code,
-            "created_at": app.created_at,
-            "updated_at": app.updated_at,
-            "patient": app.patient,
-            "doctor": app.doctor,
-            "patient_name": app.patient.name if app.patient else None,
-            "doctor_name": app.doctor.name if getattr(app, 'doctor', None) else None
-        }
-        result.append(app_dict)
-        
-    return result
+    try:
+        appointments = await service.list_appointments_by_doctor_date(doctor_id, date, visit_type)
+
+        result = []
+        for app in appointments:
+            app_dict = {
+                "id": app.id,
+                "patient_id": app.patient_id,
+                "doctor_id": app.doctor_id,
+                "date": app.date,
+                "slot": app.slot,
+                "time_slot": app.time_slot,
+                "slot_label": app.slot_label,
+                "visit_type": app.visit_type.value if hasattr(app.visit_type, "value") else app.visit_type,
+                "status": app.status.value if hasattr(app.status, "value") else app.status,
+                "check_in_code": app.check_in_code,
+                "created_at": app.created_at,
+                "updated_at": app.updated_at,
+                "patient": app.patient,
+                "doctor": app.doctor,
+                "patient_name": app.patient.name if app.patient else None,
+                "doctor_name": app.doctor.name if getattr(app, "doctor", None) else None,
+            }
+            result.append(app_dict)
+
+        return result
+    except Exception as e:
+        logger.error("Failed to list doctor appointments", doctor_id=str(doctor_id), error=str(e))
+        return []
 
 
 @router.post(
