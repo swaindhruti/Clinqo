@@ -1,21 +1,34 @@
 const redis = require('redis');
 
-// Connect to Redis container
-// Using docker bridge IP or localhost:6379
-const redisClient = redis.createClient({
-  socket: {
-    host: 'localhost',  // Docker maps port 6379 to localhost
-    port: 6379,
-    reconnectStrategy: (retries) => Math.min(retries * 50, 500)
-  }
-});
+const redisUrl = process.env.REDIS_URL;
+const redisHost = process.env.REDIS_HOST || 'localhost';
+const redisPort = Number(process.env.REDIS_PORT || 6379);
+
+const redisClient = redisUrl
+  ? redis.createClient({
+      url: redisUrl,
+      socket: {
+        reconnectStrategy: (retries) => Math.min(retries * 50, 500)
+      }
+    })
+  : redis.createClient({
+      socket: {
+        host: redisHost,
+        port: redisPort,
+        reconnectStrategy: (retries) => Math.min(retries * 50, 500)
+      }
+    });
 
 redisClient.on('error', (err) => {
   console.error('❌ Redis connection error:', err);
 });
 
 redisClient.on('connect', () => {
-  console.log('✅ Connected to Redis on localhost:6379');
+  if (redisUrl) {
+    console.log('✅ Connected to Redis via REDIS_URL');
+  } else {
+    console.log(`✅ Connected to Redis on ${redisHost}:${redisPort}`);
+  }
 });
 
 redisClient.on('ready', () => {
