@@ -16,11 +16,11 @@ class DoctorRepository:
         self.db.add(doctor)
         await self.db.commit()
         await self.db.refresh(doctor)
-        return doctor
+        return await self.get_by_id(doctor.id) or doctor
     
     async def get_by_id(self, doctor_id: UUID) -> Optional[DoctorMaster]:
         result = await self.db.execute(
-            select(DoctorMaster).where(DoctorMaster.id == doctor_id)
+            select(DoctorMaster).options(joinedload(DoctorMaster.clinic)).where(DoctorMaster.id == doctor_id)
         )
         return result.scalar_one_or_none()
     

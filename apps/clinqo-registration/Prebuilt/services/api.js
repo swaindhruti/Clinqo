@@ -18,6 +18,19 @@ async function fetchClinicById(clinicId) {
     return response.data;
   } catch (error) {
     if (error.response?.status === 404) return null;
+
+    // Fallback: some backend deployments may temporarily fail on the detail
+    // endpoint while the list endpoint still works. Try to recover by searching
+    // the clinic from the list response.
+    try {
+      const listResponse = await axios.get(`${API_BASE_URL}/clinics`, { headers });
+      const clinics = Array.isArray(listResponse.data) ? listResponse.data : [];
+      const clinic = clinics.find((item) => item.id === clinicId) || null;
+      if (clinic) return clinic;
+    } catch (_fallbackError) {
+      // ignore fallback failure; original error is logged below
+    }
+
     console.error('❌ Error fetching clinic:', error.response?.data || error.message);
     return null;
   }
