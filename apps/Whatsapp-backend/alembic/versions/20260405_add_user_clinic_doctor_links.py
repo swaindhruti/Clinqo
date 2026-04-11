@@ -18,15 +18,13 @@ depends_on = None
 def upgrade() -> None:
     op.execute(
         """
-        ALTER TABLE users
-        ADD COLUMN IF NOT EXISTS clinic_id UUID;
-        """
-    )
-
-    op.execute(
-        """
-        ALTER TABLE users
-        ADD COLUMN IF NOT EXISTS doctor_id UUID;
+        DO $$
+        BEGIN
+            IF to_regclass('public.users') IS NOT NULL THEN
+                ALTER TABLE users
+                ADD COLUMN IF NOT EXISTS clinic_id UUID;
+            END IF;
+        END $$;
         """
     )
 
@@ -34,7 +32,19 @@ def upgrade() -> None:
         """
         DO $$
         BEGIN
-            IF NOT EXISTS (
+            IF to_regclass('public.users') IS NOT NULL THEN
+                ALTER TABLE users
+                ADD COLUMN IF NOT EXISTS doctor_id UUID;
+            END IF;
+        END $$;
+        """
+    )
+
+    op.execute(
+        """
+        DO $$
+        BEGIN
+            IF to_regclass('public.users') IS NOT NULL AND NOT EXISTS (
                 SELECT 1
                 FROM pg_constraint
                 WHERE conname = 'fk_users_clinic_id'
@@ -51,7 +61,7 @@ def upgrade() -> None:
         """
         DO $$
         BEGIN
-            IF NOT EXISTS (
+            IF to_regclass('public.users') IS NOT NULL AND NOT EXISTS (
                 SELECT 1
                 FROM pg_constraint
                 WHERE conname = 'fk_users_doctor_id'
@@ -68,28 +78,48 @@ def upgrade() -> None:
 def downgrade() -> None:
     op.execute(
         """
-        ALTER TABLE users
-        DROP CONSTRAINT IF EXISTS fk_users_doctor_id;
+        DO $$
+        BEGIN
+            IF to_regclass('public.users') IS NOT NULL THEN
+                ALTER TABLE users
+                DROP CONSTRAINT IF EXISTS fk_users_doctor_id;
+            END IF;
+        END $$;
         """
     )
 
     op.execute(
         """
-        ALTER TABLE users
-        DROP CONSTRAINT IF EXISTS fk_users_clinic_id;
+        DO $$
+        BEGIN
+            IF to_regclass('public.users') IS NOT NULL THEN
+                ALTER TABLE users
+                DROP CONSTRAINT IF EXISTS fk_users_clinic_id;
+            END IF;
+        END $$;
         """
     )
 
     op.execute(
         """
-        ALTER TABLE users
-        DROP COLUMN IF EXISTS doctor_id;
+        DO $$
+        BEGIN
+            IF to_regclass('public.users') IS NOT NULL THEN
+                ALTER TABLE users
+                DROP COLUMN IF EXISTS doctor_id;
+            END IF;
+        END $$;
         """
     )
 
     op.execute(
         """
-        ALTER TABLE users
-        DROP COLUMN IF EXISTS clinic_id;
+        DO $$
+        BEGIN
+            IF to_regclass('public.users') IS NOT NULL THEN
+                ALTER TABLE users
+                DROP COLUMN IF EXISTS clinic_id;
+            END IF;
+        END $$;
         """
     )

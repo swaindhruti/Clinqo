@@ -1,7 +1,7 @@
 """add weekly slots and appointment visit type
 
 Revision ID: a20260405_slots
-Revises: a20260405_intake
+Revises: a20260405_clinics
 Create Date: 2026-04-05 00:30:00.000000
 """
 
@@ -12,7 +12,7 @@ from sqlalchemy.dialects import postgresql
 
 # revision identifiers, used by Alembic.
 revision = "a20260405_slots"
-down_revision = "a20260405_intake"
+down_revision = "a20260405_clinics"
 branch_labels = None
 depends_on = None
 
