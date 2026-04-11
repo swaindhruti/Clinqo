@@ -11,6 +11,12 @@ logger = get_logger(__name__)
 settings = get_settings()
 
 
+def _parse_cors_origins(value: str) -> list[str]:
+    if not value:
+        return ["*"]
+    return [origin.strip() for origin in value.split(",") if origin.strip()]
+
+
 @asynccontextmanager
 async def lifespan(app: FastAPI):
     logger.info("Application startup", environment=settings.ENVIRONMENT)
@@ -26,11 +32,13 @@ app = FastAPI(
 )
 
 
-# Add CORS middleware for WebSocket support
+# Add CORS middleware
+cors_origins = _parse_cors_origins(settings.CORS_ORIGINS)
+
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=["*"],  # In production, replace with specific origins
-    allow_credentials=True,
+    allow_origins=cors_origins,
+    allow_credentials=settings.CORS_ALLOW_CREDENTIALS,
     allow_methods=["*"],
     allow_headers=["*"],
 )

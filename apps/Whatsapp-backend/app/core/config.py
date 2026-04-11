@@ -17,6 +17,10 @@ class Settings(BaseSettings):
     # Auth
     SECRET_KEY: str = os.getenv("SECRET_KEY", "clinqo-dev-secret-key-change-in-production")
     ACCESS_TOKEN_EXPIRE_MINUTES: int = int(os.getenv("ACCESS_TOKEN_EXPIRE_MINUTES", "480"))
+
+    # CORS
+    CORS_ORIGINS: str = os.getenv("CORS_ORIGINS", "*")
+    CORS_ALLOW_CREDENTIALS: bool = os.getenv("CORS_ALLOW_CREDENTIALS", "false").lower() == "true"
     
     class Config:
         env_file = ".env"
