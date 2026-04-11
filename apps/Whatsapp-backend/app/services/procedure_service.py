@@ -33,16 +33,22 @@ class ProcedureService:
         self,
         clinic_id: Optional[UUID] = None,
         preferred_date: Optional[date] = None,
+        from_date: Optional[date] = None,
         status: Optional[str] = None,
         patient_id: Optional[UUID] = None,
         patient_phone: Optional[str] = None,
+        upcoming_only: bool = False,
+        limit: Optional[int] = None,
     ) -> List[ProcedureBooking]:
         return await self.repo.list_bookings(
             clinic_id=clinic_id,
             preferred_date=preferred_date,
+            from_date=from_date,
             status=status,
             patient_id=patient_id,
             patient_phone=patient_phone,
+            upcoming_only=upcoming_only,
+            limit=limit,
         )
 
     async def delete_booking(self, booking_id: UUID) -> bool:

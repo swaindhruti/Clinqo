@@ -99,6 +99,17 @@ export interface ProcedureBooking {
   updated_at: string;
 }
 
+export interface QueryRecord {
+  id: string;
+  clinic_id: string;
+  patient_id?: string | null;
+  patient_phone: string;
+  patient_name: string;
+  query_text: string;
+  status: string;
+  created_at: string;
+}
+
 export interface APIErrorResponse {
   error: string;
   message: string;

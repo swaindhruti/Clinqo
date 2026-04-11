@@ -1,5 +1,8 @@
 import { OverviewSection } from "@/components/features/dashboard/clinic/overview/overview-section";
 import { AppointmentsManagement } from "@/components/features/dashboard/clinic/appointments/appointments-management";
+import { DoctorsSection } from "@/components/features/dashboard/clinic/doctors/doctors-section";
+import { CheckInSection } from "@/components/features/dashboard/clinic/check-in/check-in-section";
+import { QueriesSection } from "@/components/features/dashboard/clinic/queries/queries-section";
 import { SettingsSection } from "@/components/features/dashboard/clinic/settings/settings-section";
 
 type PageProps = {
@@ -15,6 +18,12 @@ export default async function ClinicDashboard({ searchParams }: PageProps) {
   let ContentComponent = <OverviewSection />;
   if (tab === "appointments") {
     ContentComponent = <AppointmentsManagement visitType="consultation" />;
+  } else if (tab === "doctors") {
+    ContentComponent = <DoctorsSection />;
+  } else if (tab === "checkin") {
+    ContentComponent = <CheckInSection />;
+  } else if (tab === "queries") {
+    ContentComponent = <QueriesSection />;
   } else if (tab === "procedures") {
     ContentComponent = <AppointmentsManagement visitType="procedure" />;
   } else if (tab === "settings") {

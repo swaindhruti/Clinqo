@@ -11,6 +11,7 @@ import {
   LogOut,
   User,
   MessageSquare,
+  QrCode,
   ChevronRight,
 } from "lucide-react";
 
@@ -67,6 +68,9 @@ const navigationConfig: NavigationConfig = {
         { title: "Past", url: "/clinic?tab=appointments&view=past" },
       ],
     },
+    { title: "Doctors & Slots", url: "/clinic?tab=doctors", icon: Stethoscope },
+    { title: "Check-in", url: "/clinic?tab=checkin", icon: QrCode },
+    { title: "Queries", url: "/clinic?tab=queries", icon: MessageSquare },
     {
       title: "Procedure Bookings",
       url: "/clinic?tab=procedures",

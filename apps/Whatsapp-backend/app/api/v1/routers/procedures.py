@@ -38,16 +38,22 @@ async def list_procedure_bookings(
     service: ProcedureService = Depends(get_procedure_service),
     clinic_id: Optional[UUID] = Query(None, description="Filter by clinic ID"),
     date: Optional[date] = Query(None, description="Filter by preferred date"),
+    from_date: Optional[date] = Query(None, description="Start date (inclusive) in YYYY-MM-DD format"),
     status: Optional[str] = Query(None, description="Filter by status"),
     patient_id: Optional[UUID] = Query(None, description="Filter by patient ID"),
     patient_phone: Optional[str] = Query(None, description="Filter by patient phone number"),
+    upcoming_only: bool = Query(False, description="When true, excludes completed/cancelled and sorts ascending"),
+    limit: Optional[int] = Query(None, description="Max number of results to return"),
 ):
     return await service.list_bookings(
         clinic_id=clinic_id,
         preferred_date=date,
+        from_date=from_date,
         status=status,
         patient_id=patient_id,
         patient_phone=patient_phone,
+        upcoming_only=upcoming_only,
+        limit=limit,
     )
 
 

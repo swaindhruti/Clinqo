@@ -1,212 +1,153 @@
-import {
-  Trophy,
-  TrendingUp,
-  Building2,
-  Stethoscope,
-  BriefcaseMedical,
-} from "lucide-react";
+"use client";
+
+import { useMemo } from "react";
+import { useQuery } from "@tanstack/react-query";
+import { format } from "date-fns";
+import { AlertCircle, Building2, CalendarCheck2, Loader2, Stethoscope, Trophy } from "lucide-react";
+
+import { apiClient } from "@/lib/api-client";
+import type { Appointment, ProcedureBooking } from "@/types/api";
+
+type ClinicLite = { id: string; name: string };
+type DoctorLite = { id: string; name: string; clinic_id?: string | null };
 
 export function OverviewSection() {
+  const { data, isLoading, error } = useQuery({
+    queryKey: ["admin-overview-analytics"],
+    queryFn: async () => {
+      const [appointments, procedures, clinics, doctors] = await Promise.all([
+        apiClient.get<Appointment[]>("/appointments"),
+        apiClient.get<ProcedureBooking[]>("/procedures"),
+        apiClient.get<ClinicLite[]>("/clinics"),
+        apiClient.get<DoctorLite[]>("/doctors"),
+      ]);
+      return { appointments, procedures, clinics, doctors };
+    },
+  });
+
+  const metrics = useMemo(() => {
+    const appointments = data?.appointments || [];
+    const procedures = data?.procedures || [];
+    const clinics = data?.clinics || [];
+    const doctors = data?.doctors || [];
+    const today = format(new Date(), "yyyy-MM-dd");
+
+    const todayAppointments = appointments.filter((item) => item.date === today).length;
+    const todayProcedures = procedures.filter((item) => item.preferred_date === today).length;
+
+    const doctorNameById = Object.fromEntries(doctors.map((d) => [d.id, d.name]));
+    const clinicNameById = Object.fromEntries(clinics.map((c) => [c.id, c.name]));
+    const clinicIdByDoctorId = Object.fromEntries(doctors.map((d) => [d.id, d.clinic_id || ""]));
+
+    const clinicCounts = appointments.reduce<Record<string, number>>((acc, item) => {
+      const clinicId = item.doctor?.clinic_id || clinicIdByDoctorId[item.doctor_id] || "";
+      if (!clinicId) return acc;
+      acc[clinicId] = (acc[clinicId] || 0) + 1;
+      return acc;
+    }, {});
+
+    const doctorCounts = appointments.reduce<Record<string, number>>((acc, item) => {
+      const doctorId = item.doctor_id;
+      if (!doctorId) return acc;
+      acc[doctorId] = (acc[doctorId] || 0) + 1;
+      return acc;
+    }, {});
+
+    const topClinicEntry = Object.entries(clinicCounts).sort((a, b) => b[1] - a[1])[0];
+    const topDoctorEntry = Object.entries(doctorCounts).sort((a, b) => b[1] - a[1])[0];
+
+    return {
+      totalAppointments: appointments.length,
+      totalProcedureBookings: procedures.length,
+      totalClinics: clinics.length,
+      totalDoctors: doctors.length,
+      todayBookings: todayAppointments + todayProcedures,
+      topClinicName: topClinicEntry ? clinicNameById[topClinicEntry[0]] || "—" : "—",
+      topClinicCount: topClinicEntry?.[1] || 0,
+      topDoctorName: topDoctorEntry ? doctorNameById[topDoctorEntry[0]] || "—" : "—",
+      topDoctorCount: topDoctorEntry?.[1] || 0,
+    };
+  }, [data]);
+
   return (
     <div className="flex flex-col gap-6 animate-in fade-in duration-500">
-      <div className="flex items-center justify-between">
-        <div>
-          <h2 className="text-2xl font-bold tracking-tight text-neutral-900">
-            Platform Overview
-          </h2>
-          <p className="text-muted-foreground mt-1">
-            High-level metrics and system performance.
-          </p>
-        </div>
+      <div>
+        <h2 className="text-2xl font-bold tracking-tight text-neutral-900">Platform Overview</h2>
+        <p className="text-muted-foreground mt-1">Live platform analytics across clinics, doctors, and bookings.</p>
       </div>
 
-      <div className="grid auto-rows-min gap-4 md:grid-cols-2 lg:grid-cols-4">
-        <div className="bg-white border border-neutral-200 shadow-sm rounded-xl p-6 flex flex-col justify-center">
-          <span className="text-sm font-medium text-neutral-500 mb-2">
-            Active Clinics
-          </span>
-          <span className="text-4xl font-bold text-neutral-900">156</span>
-          <span className="text-sm font-medium text-green-600 mt-2">
-            +12% from last month
-          </span>
+      {isLoading ? (
+        <div className="rounded-xl border border-dashed border-neutral-200 bg-white py-16 text-center">
+          <Loader2 className="mx-auto h-8 w-8 animate-spin text-blue-500" />
+          <p className="mt-3 text-sm text-neutral-500">Loading analytics...</p>
         </div>
-        <div className="bg-white border border-neutral-200 shadow-sm rounded-xl p-6 flex flex-col justify-center">
-          <span className="text-sm font-medium text-neutral-500 mb-2">
-            Active Doctors
-          </span>
-          <span className="text-4xl font-bold text-neutral-900">1,204</span>
-          <span className="text-sm font-medium text-green-600 mt-2">
-            +8% from last month
-          </span>
+      ) : error ? (
+        <div className="flex items-center gap-2 rounded-xl border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-700">
+          <AlertCircle className="h-4 w-4" />
+          Failed to load overview analytics.
         </div>
-        <div className="bg-white border border-neutral-200 shadow-sm rounded-xl p-6 flex flex-col justify-center">
-          <span className="text-sm font-medium text-neutral-500 mb-2">
-            Today&apos;s Bookings
-          </span>
-          <span className="text-4xl font-bold text-neutral-900">3,492</span>
-          <span className="text-sm font-medium text-neutral-500 mt-2">
-            Across all timezones
-          </span>
-        </div>
-        <div className="bg-white border border-neutral-200 shadow-sm rounded-xl p-6 flex flex-col justify-center">
-          <span className="text-sm font-medium text-neutral-500 mb-2">
-            Monthly Revenue
-          </span>
-          <span className="text-4xl font-bold text-neutral-900">$248k</span>
-          <span className="text-sm font-medium text-green-600 mt-2">
-            +15% from last month
-          </span>
-        </div>
-      </div>
+      ) : (
+        <>
+          <div className="grid auto-rows-min gap-4 md:grid-cols-2 lg:grid-cols-4">
+            <div className="bg-white border border-neutral-200 shadow-sm rounded-xl p-6">
+              <p className="text-sm text-neutral-500">Total Appointments</p>
+              <p className="mt-2 text-3xl font-bold text-neutral-900">{metrics.totalAppointments}</p>
+            </div>
+            <div className="bg-white border border-neutral-200 shadow-sm rounded-xl p-6">
+              <p className="text-sm text-neutral-500">Total Procedure Bookings</p>
+              <p className="mt-2 text-3xl font-bold text-neutral-900">{metrics.totalProcedureBookings}</p>
+            </div>
+            <div className="bg-white border border-neutral-200 shadow-sm rounded-xl p-6">
+              <p className="text-sm text-neutral-500">Total Clinics / Doctors</p>
+              <p className="mt-2 text-3xl font-bold text-neutral-900">{metrics.totalClinics} / {metrics.totalDoctors}</p>
+            </div>
+            <div className="bg-white border border-neutral-200 shadow-sm rounded-xl p-6">
+              <p className="text-sm text-neutral-500">Today&apos;s Total Bookings</p>
+              <p className="mt-2 text-3xl font-bold text-neutral-900">{metrics.todayBookings}</p>
+            </div>
+          </div>
 
-      {/* Top Performers Grid */}
-      <h3 className="text-lg font-semibold tracking-tight text-neutral-900 mt-2 flex items-center gap-2">
-        <Trophy className="h-5 w-5 text-yellow-500" />
-        Platform Top Performers
-      </h3>
-      <div className="grid gap-4 md:grid-cols-3">
-        {/* Top 3 Clinics */}
-        <div className="bg-white border border-neutral-200 shadow-sm rounded-xl overflow-hidden flex flex-col">
-          <div className="bg-neutral-50/50 border-b border-neutral-100 p-4 shrink-0">
-            <h4 className="font-semibold text-neutral-800 flex items-center gap-2 text-sm">
-              <Building2 className="h-4 w-4 text-blue-600" />
-              Top 3 Clinics
-            </h4>
+          <div className="grid gap-4 md:grid-cols-2">
+            <div className="bg-white border border-neutral-200 shadow-sm rounded-xl p-6">
+              <h3 className="flex items-center gap-2 text-sm font-semibold text-neutral-700">
+                <Building2 className="h-4 w-4 text-blue-600" />
+                Highest-Load Clinic
+              </h3>
+              <p className="mt-3 text-xl font-bold text-neutral-900">{metrics.topClinicName}</p>
+              <p className="mt-1 text-sm text-neutral-500">{metrics.topClinicCount} appointments recorded</p>
+            </div>
+            <div className="bg-white border border-neutral-200 shadow-sm rounded-xl p-6">
+              <h3 className="flex items-center gap-2 text-sm font-semibold text-neutral-700">
+                <Stethoscope className="h-4 w-4 text-teal-600" />
+                Highest-Load Doctor
+              </h3>
+              <p className="mt-3 text-xl font-bold text-neutral-900">{metrics.topDoctorName}</p>
+              <p className="mt-1 text-sm text-neutral-500">{metrics.topDoctorCount} appointments recorded</p>
+            </div>
           </div>
-          <div className="flex flex-col p-4 gap-4 flex-1">
-            {[
-              {
-                rank: 1,
-                name: "MetroHealth Center",
-                stat: "12.4k pts",
-                color: "text-yellow-600",
-              },
-              {
-                rank: 2,
-                name: "Pioneer Orthopedics",
-                stat: "9.2k pts",
-                color: "text-neutral-500",
-              },
-              {
-                rank: 3,
-                name: "Sunrise Care Hub",
-                stat: "8.5k pts",
-                color: "text-amber-700",
-              },
-            ].map((item) => (
-              <div
-                key={item.name}
-                className="flex items-center justify-between"
-              >
-                <div className="flex items-center gap-3">
-                  <span className={`font-bold ${item.color}`}>
-                    #{item.rank}
-                  </span>
-                  <span className="font-medium text-neutral-900 text-sm">
-                    {item.name}
-                  </span>
-                </div>
-                <span className="text-xs font-medium text-neutral-500">
-                  {item.stat}
-                </span>
-              </div>
-            ))}
-          </div>
-        </div>
 
-        {/* Top 3 Doctors */}
-        <div className="bg-white border border-neutral-200 shadow-sm rounded-xl overflow-hidden flex flex-col">
-          <div className="bg-neutral-50/50 border-b border-neutral-100 p-4 shrink-0">
-            <h4 className="font-semibold text-neutral-800 flex items-center gap-2 text-sm">
-              <Stethoscope className="h-4 w-4 text-teal-600" />
-              Top 3 Doctors
-            </h4>
-          </div>
-          <div className="flex flex-col p-4 gap-4 flex-1">
-            {[
-              {
-                rank: 1,
-                name: "Dr. Sarah Chen",
-                stat: "420 appts",
-                color: "text-yellow-600",
-              },
-              {
-                rank: 2,
-                name: "Dr. Marcus Johnson",
-                stat: "392 appts",
-                color: "text-neutral-500",
-              },
-              {
-                rank: 3,
-                name: "Dr. James Wilson",
-                stat: "341 appts",
-                color: "text-amber-700",
-              },
-            ].map((item) => (
-              <div
-                key={item.name}
-                className="flex items-center justify-between"
-              >
-                <div className="flex items-center gap-3">
-                  <span className={`font-bold ${item.color}`}>
-                    #{item.rank}
-                  </span>
-                  <span className="font-medium text-neutral-900 text-sm">
-                    {item.name}
-                  </span>
-                </div>
-                <span className="text-xs font-medium text-neutral-500">
-                  {item.stat}
-                </span>
+          <div className="bg-white border border-neutral-200 shadow-sm rounded-xl p-6">
+            <h3 className="text-sm font-semibold text-neutral-700 flex items-center gap-2">
+              <Trophy className="h-4 w-4 text-amber-500" />
+              Quick Insights
+            </h3>
+            <div className="mt-4 grid gap-3 md:grid-cols-3 text-sm text-neutral-700">
+              <div className="rounded-lg border border-neutral-100 bg-neutral-50 p-3">
+                <p className="font-medium">Appointments</p>
+                <p className="text-neutral-500 mt-1">{metrics.totalAppointments} total across platform.</p>
               </div>
-            ))}
-          </div>
-        </div>
-
-        {/* Top 3 Categories */}
-        <div className="bg-white border border-neutral-200 shadow-sm rounded-xl overflow-hidden flex flex-col">
-          <div className="bg-neutral-50/50 border-b border-neutral-100 p-4 shrink-0">
-            <h4 className="font-semibold text-neutral-800 flex items-center gap-2 text-sm">
-              <BriefcaseMedical className="h-4 w-4 text-rose-600" />
-              Top Demanding Specialties
-            </h4>
-          </div>
-          <div className="flex flex-col p-4 gap-4 flex-1">
-            {[
-              { rank: 1, name: "Orthopedics", trend: "+24%", trendUp: true },
-              {
-                rank: 2,
-                name: "Dermatology (Skin)",
-                trend: "+18%",
-                trendUp: true,
-              },
-              {
-                rank: 3,
-                name: "Otolaryngology (ENT)",
-                trend: "+12%",
-                trendUp: true,
-              },
-            ].map((item) => (
-              <div
-                key={item.name}
-                className="flex items-center justify-between"
-              >
-                <div className="flex items-center gap-3">
-                  <span
-                    className={`w-1.5 h-1.5 rounded-full ${item.trendUp ? "bg-green-500" : "bg-neutral-300"}`}
-                  />
-                  <span className="font-medium text-neutral-900 text-sm">
-                    {item.name}
-                  </span>
-                </div>
-                <span className="text-xs font-medium text-green-600 flex items-center gap-1">
-                  {item.trend} <TrendingUp className="h-3 w-3" />
-                </span>
+              <div className="rounded-lg border border-neutral-100 bg-neutral-50 p-3">
+                <p className="font-medium">Procedures</p>
+                <p className="text-neutral-500 mt-1">{metrics.totalProcedureBookings} total procedure requests.</p>
               </div>
-            ))}
+              <div className="rounded-lg border border-neutral-100 bg-neutral-50 p-3">
+                <p className="font-medium">Today</p>
+                <p className="text-neutral-500 mt-1">{metrics.todayBookings} combined bookings today.</p>
+              </div>
+            </div>
           </div>
-        </div>
-      </div>
+        </>
+      )}
     </div>
   );
 }

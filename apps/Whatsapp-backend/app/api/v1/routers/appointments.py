@@ -128,13 +128,24 @@ async def get_appointment(
 async def list_all_appointments(
     service: AppointmentService = Depends(get_appointment_service),
     date: Optional[date] = Query(None, description="Date in YYYY-MM-DD format"),
+    from_date: Optional[date] = Query(None, description="Start date (inclusive) in YYYY-MM-DD format"),
     patient_id: Optional[UUID] = Query(None, description="Filter by patient ID"),
+    patient_phone: Optional[str] = Query(None, description="Filter by patient phone number"),
     clinic_id: Optional[UUID] = Query(None, description="Filter by clinic ID"),
     visit_type: Optional[str] = Query(None, description="consultation or procedure"),
+    upcoming_only: bool = Query(False, description="When true, excludes completed/cancelled and sorts ascending"),
     limit: Optional[int] = Query(None, description="Max number of results to return"),
 ):
     """List all appointments across all doctors, optionally filtered by date, patient, or limited"""
-    appointments = await service.list_all_appointments(date, patient_id, visit_type, clinic_id)
+    appointments = await service.list_all_appointments(
+        date,
+        from_date,
+        patient_id,
+        patient_phone,
+        visit_type,
+        clinic_id,
+        upcoming_only,
+    )
     
     result = []
     for app in appointments:
@@ -148,6 +159,7 @@ async def list_all_appointments(
             "slot_label": app.slot_label,
             "visit_type": app.visit_type,
             "status": app.status,
+            "check_in_code": app.check_in_code,
             "created_at": app.created_at,
             "updated_at": app.updated_at,
             "patient": app.patient,
@@ -188,6 +200,7 @@ async def list_doctor_appointments(
             "slot_label": app.slot_label,
             "visit_type": app.visit_type,
             "status": app.status,
+            "check_in_code": app.check_in_code,
             "created_at": app.created_at,
             "updated_at": app.updated_at,
             "patient": app.patient,
@@ -236,10 +249,12 @@ async def get_doctor_slot_availability(
     service: AppointmentService = Depends(get_appointment_service),
     visit_type: str = Query("consultation", description="consultation or procedure"),
     days: int = Query(14, ge=1, le=60, description="How many upcoming days to evaluate"),
+    from_date: Optional[date] = Query(None, description="Start date (inclusive) in YYYY-MM-DD format"),
 ):
     """Return free days and non-full slot windows for booking."""
     return await service.get_slot_availability(
         doctor_id=doctor_id,
         visit_type=visit_type,
         days=days,
+        from_date=from_date,
     )

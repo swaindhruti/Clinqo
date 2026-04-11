@@ -14,18 +14,22 @@ export class APIError extends Error {
 }
 
 async function handleResponse<T>(response: Response): Promise<T> {
-  const data = await response.json();
+  const contentType = response.headers.get("content-type") || "";
+  const isJson = contentType.includes("application/json");
+  const isNoContent = response.status === 204 || response.status === 205;
+  const data = isNoContent ? null : (isJson ? await response.json() : await response.text());
   
   if (!response.ok) {
     // FastAPI returns errors in 'detail' field
-    const message = data.message || 
-                   (data.detail && typeof data.detail === 'object' ? data.detail.message : data.detail) || 
+    const detailObj = data && typeof data === "object" ? (data as Record<string, unknown>) : null;
+    const message = (detailObj?.message as string) || 
+                   (detailObj?.detail && typeof detailObj.detail === 'object' ? (detailObj.detail as Record<string, unknown>).message as string : detailObj?.detail as string) || 
                    'An error occurred while fetching the data.';
                    
     throw new APIError(
       response.status,
       message,
-      data.details || data.detail
+      detailObj?.details || detailObj?.detail
     );
   }
 

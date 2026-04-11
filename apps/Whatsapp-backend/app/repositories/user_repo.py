@@ -1,6 +1,6 @@
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy import select
-from app.models import User
+from app.models import User, UserRole
 from uuid import UUID
 from typing import Optional
 
@@ -27,3 +27,28 @@ class UserRepository:
             select(User).where(User.id == user_id)
         )
         return result.scalar_one_or_none()
+
+    async def get_by_clinic_id(self, clinic_id: UUID) -> Optional[User]:
+        result = await self.db.execute(
+            select(User).where(
+                User.role == UserRole.CLINIC,
+                User.clinic_id == clinic_id,
+            )
+        )
+        return result.scalar_one_or_none()
+
+    async def get_by_doctor_id(self, doctor_id: UUID) -> Optional[User]:
+        result = await self.db.execute(
+            select(User).where(
+                User.role == UserRole.DOCTOR,
+                User.doctor_id == doctor_id,
+            )
+        )
+        return result.scalar_one_or_none()
+
+    async def update(self, user: User, data: dict) -> User:
+        for key, value in data.items():
+            setattr(user, key, value)
+        await self.db.commit()
+        await self.db.refresh(user)
+        return user

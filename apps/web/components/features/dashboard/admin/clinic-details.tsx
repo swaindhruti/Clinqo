@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useMemo } from "react";
+import { useState, useMemo, useEffect } from "react";
 import { useQuery } from "@tanstack/react-query";
 import { useQueryClient } from "@tanstack/react-query";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
@@ -79,6 +79,17 @@ export function ClinicDetails({ clinicId, onBack }: ClinicDetailsProps) {
   const [deletingServiceId, setDeletingServiceId] = useState<string | null>(null);
   const [isDeletingClinic, setIsDeletingClinic] = useState(false);
   const [deletingSlotId, setDeletingSlotId] = useState<string | null>(null);
+  const [slotForm, setSlotForm] = useState({
+    doctorId: "",
+    weekday: "0",
+    startTime: "09:00",
+    endTime: "10:00",
+    maxPatients: "5",
+    visitType: "consultation" as "consultation" | "procedure",
+  });
+  const [isSavingSlot, setIsSavingSlot] = useState(false);
+  const [slotMessage, setSlotMessage] = useState<string | null>(null);
+  const [slotError, setSlotError] = useState<string | null>(null);
 
   // Fetch clinic details
   const { data: clinicDetails } = useQuery({
@@ -128,6 +139,12 @@ export function ClinicDetails({ clinicId, onBack }: ClinicDetailsProps) {
     }
     return map;
   }, [clinicDoctors, weeklySlots]);
+
+  useEffect(() => {
+    if (!slotForm.doctorId && clinicDoctors && clinicDoctors.length > 0) {
+      setSlotForm((prev) => ({ ...prev, doctorId: clinicDoctors[0].id }));
+    }
+  }, [clinicDoctors, slotForm.doctorId]);
 
   const handleAddService = async () => {
     if (!serviceForm.name.trim()) {
@@ -213,6 +230,50 @@ export function ClinicDetails({ clinicId, onBack }: ClinicDetailsProps) {
       alert(message);
     } finally {
       setDeletingSlotId(null);
+    }
+  };
+
+  const handleAddSlot = async () => {
+    if (!slotForm.doctorId) {
+      setSlotError("Please select a doctor.");
+      return;
+    }
+    if (!slotForm.startTime || !slotForm.endTime) {
+      setSlotError("Start and end times are required.");
+      return;
+    }
+
+    setIsSavingSlot(true);
+    setSlotError(null);
+    setSlotMessage(null);
+
+    try {
+      await apiClient.post(`/doctors/${slotForm.doctorId}/weekly-slots`, {
+        clinic_id: clinicId,
+        weekday: Number(slotForm.weekday),
+        start_time: slotForm.startTime,
+        end_time: slotForm.endTime,
+        max_patients: Number(slotForm.maxPatients),
+        visit_type: slotForm.visitType,
+        is_active: true,
+      });
+
+      setSlotMessage("Time slot added successfully.");
+      setSlotForm((prev) => ({
+        ...prev,
+        weekday: "0",
+        startTime: "09:00",
+        endTime: "10:00",
+        maxPatients: "5",
+      }));
+
+      await queryClient.invalidateQueries({ queryKey: ["clinic-weekly-slots", clinicId] });
+      await queryClient.invalidateQueries({ queryKey: ["doctor-weekly-slots", slotForm.doctorId] });
+    } catch (error) {
+      const message = error instanceof Error ? error.message : "Failed to add time slot.";
+      setSlotError(message);
+    } finally {
+      setIsSavingSlot(false);
     }
   };
 
@@ -440,6 +501,97 @@ export function ClinicDetails({ clinicId, onBack }: ClinicDetailsProps) {
 
         {/* Doctors & Slots Tab */}
         <TabsContent value="doctors" className="mt-0 space-y-6">
+          <div className="rounded-xl border border-neutral-200 bg-white p-6 shadow-sm">
+            <h2 className="text-lg font-semibold text-neutral-900 mb-4">Add Time Slot</h2>
+
+            <div className="grid gap-3 md:grid-cols-6">
+              <select
+                className="rounded-lg border border-neutral-200 px-3 py-2 text-sm"
+                value={slotForm.doctorId}
+                onChange={(e) =>
+                  setSlotForm((prev) => ({ ...prev, doctorId: e.target.value }))
+                }
+              >
+                <option value="">Select doctor</option>
+                {(clinicDoctors || []).map((doctor) => (
+                  <option key={doctor.id} value={doctor.id}>
+                    {doctor.name}
+                  </option>
+                ))}
+              </select>
+
+              <select
+                className="rounded-lg border border-neutral-200 px-3 py-2 text-sm"
+                value={slotForm.weekday}
+                onChange={(e) =>
+                  setSlotForm((prev) => ({ ...prev, weekday: e.target.value }))
+                }
+              >
+                {WEEKDAYS.map((day, idx) => (
+                  <option key={idx} value={idx}>
+                    {day}
+                  </option>
+                ))}
+              </select>
+
+              <input
+                type="time"
+                className="rounded-lg border border-neutral-200 px-3 py-2 text-sm"
+                value={slotForm.startTime}
+                onChange={(e) =>
+                  setSlotForm((prev) => ({ ...prev, startTime: e.target.value }))
+                }
+              />
+
+              <input
+                type="time"
+                className="rounded-lg border border-neutral-200 px-3 py-2 text-sm"
+                value={slotForm.endTime}
+                onChange={(e) =>
+                  setSlotForm((prev) => ({ ...prev, endTime: e.target.value }))
+                }
+              />
+
+              <input
+                type="number"
+                min="1"
+                max="50"
+                className="rounded-lg border border-neutral-200 px-3 py-2 text-sm"
+                placeholder="Max patients"
+                value={slotForm.maxPatients}
+                onChange={(e) =>
+                  setSlotForm((prev) => ({ ...prev, maxPatients: e.target.value }))
+                }
+              />
+
+              <select
+                className="rounded-lg border border-neutral-200 px-3 py-2 text-sm"
+                value={slotForm.visitType}
+                onChange={(e) =>
+                  setSlotForm((prev) => ({
+                    ...prev,
+                    visitType: e.target.value as "consultation" | "procedure",
+                  }))
+                }
+              >
+                <option value="consultation">Consultation</option>
+                <option value="procedure">Procedure</option>
+              </select>
+            </div>
+
+            <Button
+              onClick={handleAddSlot}
+              disabled={isSavingSlot || !slotForm.doctorId}
+              className="mt-3 flex items-center gap-2"
+            >
+              <Plus className="h-4 w-4" />
+              {isSavingSlot ? "Adding..." : "Add Slot"}
+            </Button>
+
+            {slotMessage && <p className="mt-3 text-sm text-green-700">{slotMessage}</p>}
+            {slotError && <p className="mt-3 text-sm text-red-600">{slotError}</p>}
+          </div>
+
           {clinicDoctors && clinicDoctors.length > 0 ? (
             <div className="space-y-4">
               {clinicDoctors.map((doctor) => {

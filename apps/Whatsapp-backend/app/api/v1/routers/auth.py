@@ -2,9 +2,9 @@
 api/v1/routers/auth.py - Authentication endpoints
 """
 from fastapi import APIRouter, Depends, HTTPException, status
-from app.schemas import UserRegister, UserLogin, UserResponse, TokenResponse, ErrorResponse
+from app.schemas import UserRegister, UserLogin, UserResponse, TokenResponse, ErrorResponse, EmergencyCredentialUpdate
 from app.services.auth_service import AuthService
-from app.api.v1.deps import get_auth_service, get_current_user
+from app.api.v1.deps import get_auth_service, get_current_user, require_admin
 from app.core.logging import get_logger
 
 router = APIRouter(prefix="/auth", tags=["auth"])
@@ -67,3 +67,30 @@ async def login(
 async def get_me(current_user=Depends(get_current_user)):
     """Get current authenticated user."""
     return current_user
+
+
+@router.put(
+    "/credentials/emergency",
+    response_model=UserResponse,
+    responses={400: {"model": ErrorResponse}, 403: {"model": ErrorResponse}},
+)
+async def emergency_update_credentials(
+    payload: EmergencyCredentialUpdate,
+    service: AuthService = Depends(get_auth_service),
+    _admin=Depends(require_admin),
+):
+    """Emergency update for clinic/doctor credentials by admin."""
+    try:
+        user = await service.emergency_update_credentials(
+            role=payload.role,
+            clinic_id=payload.clinic_id,
+            doctor_id=payload.doctor_id,
+            email=payload.email,
+            password=payload.password,
+        )
+        return user
+    except ValueError as e:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail={"error": "CredentialUpdateError", "message": str(e)}
+        )

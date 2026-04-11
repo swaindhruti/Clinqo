@@ -20,7 +20,18 @@ class QueryRepository:
         result = await self.db.execute(stmt)
         return result.scalars().all()
 
+    async def list_all(self) -> List[GeneralQuery]:
+        stmt = select(GeneralQuery).order_by(GeneralQuery.created_at.desc())
+        result = await self.db.execute(stmt)
+        return result.scalars().all()
+
     async def get_by_id(self, query_id: UUID) -> Optional[GeneralQuery]:
         stmt = select(GeneralQuery).where(GeneralQuery.id == query_id)
         result = await self.db.execute(stmt)
         return result.scalar_one_or_none()
+
+    async def update_status(self, query: GeneralQuery, status: str) -> GeneralQuery:
+        query.status = status
+        await self.db.commit()
+        await self.db.refresh(query)
+        return query

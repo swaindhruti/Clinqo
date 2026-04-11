@@ -93,5 +93,42 @@ class AuthService:
             "user_id": str(user.id),
         }
 
+    async def emergency_update_credentials(
+        self,
+        role: str,
+        email: str,
+        password: str,
+        clinic_id: Optional[UUID] = None,
+        doctor_id: Optional[UUID] = None,
+    ):
+        if role == "clinic":
+            if not clinic_id:
+                raise ValueError("clinic_id is required for clinic credential updates")
+            target_user = await self.user_repo.get_by_clinic_id(clinic_id)
+            if not target_user:
+                raise ValueError("No clinic credentials found for this clinic")
+        elif role == "doctor":
+            if not doctor_id:
+                raise ValueError("doctor_id is required for doctor credential updates")
+            target_user = await self.user_repo.get_by_doctor_id(doctor_id)
+            if not target_user:
+                raise ValueError("No doctor credentials found for this doctor")
+        else:
+            raise ValueError("Invalid role")
+
+        existing_with_email = await self.user_repo.get_by_email(email)
+        if existing_with_email and existing_with_email.id != target_user.id:
+            raise ValueError("Email already registered")
+
+        updated_user = await self.user_repo.update(
+            target_user,
+            {
+                "email": email,
+                "hashed_password": hash_password(password),
+            },
+        )
+        logger.info("Emergency credentials updated", user_id=str(updated_user.id), role=role)
+        return updated_user
+
     async def get_user_by_id(self, user_id: UUID):
         return await self.user_repo.get_by_id(user_id)

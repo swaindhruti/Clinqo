@@ -150,12 +150,23 @@ class AppointmentService:
     async def list_all_appointments(
         self,
         appointment_date: Optional[date] = None,
+        from_date: Optional[date] = None,
         patient_id: Optional[UUID] = None,
+        patient_phone: Optional[str] = None,
         visit_type: Optional[str] = None,
         clinic_id: Optional[UUID] = None,
+        upcoming_only: bool = False,
     ) -> List[Appointment]:
         """List all appointments across all doctors, optionally filtered by date or patient"""
-        return await self.appointment_repo.list_all(appointment_date, patient_id, visit_type, clinic_id)
+        return await self.appointment_repo.list_all(
+            appointment_date,
+            from_date,
+            patient_id,
+            patient_phone,
+            visit_type,
+            clinic_id,
+            upcoming_only,
+        )
 
     async def complete_appointment(self, appointment_id: UUID) -> dict:
         """Mark an appointment completed and return the next checked-in appointment if available."""
@@ -201,8 +212,11 @@ class AppointmentService:
 
         start_date = from_date or date.today()
         result: List[dict] = []
+        # Scan a wider horizon so we can return the next N *available* dates,
+        # not merely the next N calendar days.
+        horizon_days = max(days * 7, days)
 
-        for offset in range(days):
+        for offset in range(horizon_days):
             current_date = start_date + timedelta(days=offset)
             weekday = current_date.weekday()
 
@@ -250,5 +264,8 @@ class AppointmentService:
                         "slots": slots_payload,
                     }
                 )
+
+                if len(result) >= days:
+                    break
 
         return result

@@ -11,7 +11,11 @@ const {
   getSession, saveSession, createSession,
   clearUserData, resetBookingFields, redisClient
 } = require('./services/session');
-const { fetchClinicById, searchPatientByPhone, fetchAppointmentsByPatient } = require('./services/api');
+const {
+  fetchClinicById,
+  fetchUpcomingAppointmentsByPhone,
+  fetchUpcomingProceduresByPhone,
+} = require('./services/api');
 const { handlePatientCreation, handleRepeatPatientLookup } = require('./handlers/patient');
 const {
   handleShowSubCategories, sendDetailQuestion,
@@ -25,6 +29,20 @@ const { VISIT_TYPES, getVisitTypeByIndex, getDetailQuestions } = require('./visi
 
 // Regex to extract clinic ID from QR message: "... (clinic_id)"
 const CLINIC_ID_REGEX = /\(([a-f0-9-]+)\)/i;
+
+function getClinicLocalDateString(date = new Date()) {
+  // Use clinic local time (IST) so upcoming items around midnight are not missed.
+  const parts = new Intl.DateTimeFormat('en-CA', {
+    timeZone: 'Asia/Kolkata',
+    year: 'numeric',
+    month: '2-digit',
+    day: '2-digit',
+  }).formatToParts(date);
+  const year = parts.find((p) => p.type === 'year')?.value || '1970';
+  const month = parts.find((p) => p.type === 'month')?.value || '01';
+  const day = parts.find((p) => p.type === 'day')?.value || '01';
+  return `${year}-${month}-${day}`;
+}
 
 function parseIncomingMessageText(messageData) {
   if (messageData.interactive?.button_reply?.id) {
@@ -212,26 +230,12 @@ async function processIncomingMessage(messageData) {
           await sendMainMenu(waId, lang);
           return { status: 'invalid_input' };
         }
-        // Search patient by phone
-        const patient = await searchPatientByPhone(waId);
-        if (!patient) {
-          await sendWhatsAppMessage(waId, getMessage(lang, 'no_patient_found_menu'));
-          await clearUserData(waId);
-          return { status: 'no_patient' };
-        }
-        const appts = await fetchAppointmentsByPatient(patient.id, 50);
-        const today = new Date().toISOString().split('T')[0];
+        const today = getClinicLocalDateString();
 
         const isProcedureMenu = messageText === '2';
-        const selectedVisitType = isProcedureMenu ? 'procedure' : 'consultation';
-
-        const upcoming = (appts || [])
-          .filter((a) => a.visit_type === selectedVisitType && a.date >= today && a.status === 'booked')
-          .sort((a, b) => {
-            if (a.date !== b.date) return a.date.localeCompare(b.date);
-            return (a.slot || 0) - (b.slot || 0);
-          })
-          .slice(0, 5);
+        const upcoming = isProcedureMenu
+          ? await fetchUpcomingProceduresByPhone(waId, today, 5)
+          : await fetchUpcomingAppointmentsByPhone(waId, today, 5);
 
         if (upcoming.length === 0) {
           await sendWhatsAppMessage(
@@ -241,17 +245,22 @@ async function processIncomingMessage(messageData) {
         } else {
           let msg = getMessage(lang, isProcedureMenu ? 'upcoming_procedures_header' : 'upcoming_header');
           upcoming.forEach((a, idx) => {
-            const checkInCode = a.check_in_code || 'N/A';
-            const qrUrl = a.check_in_code
-              ? `https://api.qrserver.com/v1/create-qr-code/?size=300x300&data=${encodeURIComponent(a.check_in_code)}`
-              : 'N/A';
-            msg += getMessage(lang, 'upcoming_with_code_item', {
-              index: String(idx + 1),
-              date: a.date,
-              time: a.slot_label || a.time_slot || 'N/A',
-              code: checkInCode,
-              qr_url: qrUrl,
-            }) + '\n';
+            if (isProcedureMenu) {
+              msg += getMessage(lang, 'procedure_list_item', {
+                index: String(idx + 1),
+                sub_category: a.sub_category || 'Procedure',
+                date: a.preferred_date,
+                status: a.status,
+              }) + '\n';
+            } else {
+              const checkInCode = a.check_in_code || 'N/A';
+              msg += getMessage(lang, 'upcoming_with_code_item', {
+                index: String(idx + 1),
+                date: a.date,
+                time: a.slot_label || a.time_slot || 'N/A',
+                code: checkInCode,
+              }) + '\n';
+            }
           });
           await sendWhatsAppMessage(waId, msg);
         }

@@ -245,6 +245,10 @@ class QueryCreate(BaseModel):
     status: Optional[str] = "pending"
 
 
+class QueryStatusUpdate(BaseModel):
+    status: str = Field(..., pattern='^(pending|resolved|closed|in_progress)$')
+
+
 class QueryResponse(BaseModel):
     id: UUID
     clinic_id: UUID
@@ -299,6 +303,14 @@ class UserRegister(BaseModel):
 class UserLogin(BaseModel):
     email: EmailStr
     password: str
+
+
+class EmergencyCredentialUpdate(BaseModel):
+    role: str = Field(..., pattern='^(clinic|doctor)$')
+    clinic_id: Optional[UUID] = None
+    doctor_id: Optional[UUID] = None
+    email: EmailStr
+    password: str = Field(..., min_length=6, max_length=128)
 
 
 class UserResponse(BaseModel):

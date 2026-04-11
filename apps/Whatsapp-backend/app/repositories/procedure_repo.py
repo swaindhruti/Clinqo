@@ -23,9 +23,12 @@ class ProcedureRepository:
         self,
         clinic_id: Optional[UUID] = None,
         preferred_date: Optional[date] = None,
+        from_date: Optional[date] = None,
         status: Optional[str] = None,
         patient_id: Optional[UUID] = None,
         patient_phone: Optional[str] = None,
+        upcoming_only: bool = False,
+        limit: Optional[int] = None,
     ) -> List[ProcedureBooking]:
         query = select(ProcedureBooking).options(
             joinedload(ProcedureBooking.patient),
@@ -36,6 +39,8 @@ class ProcedureRepository:
             query = query.where(ProcedureBooking.clinic_id == clinic_id)
         if preferred_date:
             query = query.where(ProcedureBooking.preferred_date == preferred_date)
+        if from_date:
+            query = query.where(ProcedureBooking.preferred_date >= from_date)
         if status:
             query = query.where(ProcedureBooking.status == status)
         if patient_id:
@@ -48,9 +53,21 @@ class ProcedureRepository:
                     func.regexp_replace(Patient.phone, '[^0-9]', '', 'g') == digits
                 )
 
-        result = await self.db.execute(
-            query.order_by(ProcedureBooking.preferred_date.desc(), ProcedureBooking.created_at.desc())
+        if upcoming_only:
+            query = query.where(
+                ProcedureBooking.status.notin_(["completed", "cancelled"])
+            )
+
+        ordered_query = (
+            query.order_by(ProcedureBooking.preferred_date.asc(), ProcedureBooking.created_at.asc())
+            if upcoming_only
+            else query.order_by(ProcedureBooking.preferred_date.desc(), ProcedureBooking.created_at.desc())
         )
+
+        if limit and limit > 0:
+            ordered_query = ordered_query.limit(limit)
+
+        result = await self.db.execute(ordered_query)
         return list(result.scalars().all())
 
     async def get_by_id(self, booking_id: UUID) -> Optional[ProcedureBooking]:

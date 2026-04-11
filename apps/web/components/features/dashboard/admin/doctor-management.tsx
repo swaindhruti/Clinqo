@@ -141,6 +141,7 @@ export function DoctorManagement() {
     clinicId: "",
   });
   const [isCreatingCredential, setIsCreatingCredential] = useState(false);
+  const [isUpdatingCredential, setIsUpdatingCredential] = useState(false);
   const [credentialMessage, setCredentialMessage] = useState<string | null>(null);
   const [credentialError, setCredentialError] = useState<string | null>(null);
   const [deletingDoctorId, setDeletingDoctorId] = useState<string | null>(null);
@@ -252,6 +253,36 @@ export function DoctorManagement() {
       setCredentialError(message);
     } finally {
       setIsCreatingCredential(false);
+    }
+  };
+
+  const handleEmergencyUpdateDoctorCredential = async () => {
+    if (!credentialForm.doctorId || !credentialForm.email.trim() || !credentialForm.password.trim()) {
+      setCredentialError("Doctor, email, and password are required for emergency update.");
+      setCredentialMessage(null);
+      return;
+    }
+
+    setIsUpdatingCredential(true);
+    setCredentialError(null);
+    setCredentialMessage(null);
+
+    try {
+      await apiClient.put("/auth/credentials/emergency", {
+        role: "doctor",
+        doctor_id: credentialForm.doctorId,
+        clinic_id: credentialForm.clinicId || null,
+        email: credentialForm.email.trim(),
+        password: credentialForm.password,
+      });
+
+      setCredentialMessage("Doctor credentials updated successfully.");
+      setCredentialForm((prev) => ({ ...prev, password: "" }));
+    } catch (error) {
+      const message = error instanceof Error ? error.message : "Failed to update doctor credentials.";
+      setCredentialError(message);
+    } finally {
+      setIsUpdatingCredential(false);
     }
   };
 
@@ -488,13 +519,25 @@ export function DoctorManagement() {
             onChange={(e) => setCredentialForm((prev) => ({ ...prev, password: e.target.value }))}
           />
 
-          <Button
-            type="button"
-            disabled={isCreatingCredential}
-            onClick={handleCreateDoctorCredential}
-          >
-            {isCreatingCredential ? "Creating..." : "Create Credentials"}
-          </Button>
+          <div className="flex gap-2 md:col-span-5 lg:col-span-1">
+            <Button
+              type="button"
+              disabled={isCreatingCredential || isUpdatingCredential}
+              onClick={handleCreateDoctorCredential}
+              className="flex-1"
+            >
+              {isCreatingCredential ? "Creating..." : "Create"}
+            </Button>
+            <Button
+              type="button"
+              variant="outline"
+              disabled={isCreatingCredential || isUpdatingCredential}
+              onClick={handleEmergencyUpdateDoctorCredential}
+              className="flex-1"
+            >
+              {isUpdatingCredential ? "Updating..." : "Emergency Update"}
+            </Button>
+          </div>
         </div>
 
         {credentialMessage ? (

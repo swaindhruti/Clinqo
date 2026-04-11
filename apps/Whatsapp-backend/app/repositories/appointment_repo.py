@@ -5,7 +5,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy import select, and_, update, func
 from sqlalchemy.exc import IntegrityError
 from sqlalchemy.orm import joinedload
-from app.models import Appointment, DoctorDailyCapacity, AppointmentStatus, VisitType, DoctorMaster
+from app.models import Appointment, DoctorDailyCapacity, AppointmentStatus, VisitType, DoctorMaster, Patient
 
 
 class AppointmentRepository:
@@ -56,9 +56,12 @@ class AppointmentRepository:
     async def list_all(
         self,
         appointment_date: Optional[date] = None,
+        from_date: Optional[date] = None,
         patient_id: Optional[UUID] = None,
+        patient_phone: Optional[str] = None,
         visit_type: Optional[str] = None,
         clinic_id: Optional[UUID] = None,
+        upcoming_only: bool = False,
     ) -> List[Appointment]:
         query = select(Appointment).options(
             joinedload(Appointment.patient),
@@ -72,12 +75,29 @@ class AppointmentRepository:
             )
         if appointment_date:
             query = query.where(Appointment.date == appointment_date)
+        if from_date:
+            query = query.where(Appointment.date >= from_date)
         if patient_id:
             query = query.where(Appointment.patient_id == patient_id)
+        if patient_phone:
+            import re
+            digits = re.sub(r'\D', '', patient_phone)
+            if digits:
+                query = query.join(Patient, Appointment.patient_id == Patient.id).where(
+                    func.regexp_replace(Patient.phone, '[^0-9]', '', 'g') == digits
+                )
         if visit_type:
             query = query.where(Appointment.visit_type == visit_type)
+
+        if upcoming_only:
+            query = query.where(Appointment.status != AppointmentStatus.COMPLETED)
             
-        result = await self.db.execute(query.order_by(Appointment.date.desc(), Appointment.slot))
+        order_by_clause = (
+            query.order_by(Appointment.date.asc(), Appointment.slot)
+            if upcoming_only
+            else query.order_by(Appointment.date.desc(), Appointment.slot)
+        )
+        result = await self.db.execute(order_by_clause)
         return list(result.scalars().all())
     
     async def list_by_date(self, appointment_date: date) -> List[Appointment]:

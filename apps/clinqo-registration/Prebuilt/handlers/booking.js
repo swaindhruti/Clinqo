@@ -5,11 +5,26 @@
 const { sendWhatsAppMessage, sendWhatsAppButtons, sendWhatsAppList } = require('../services/whatsapp');
 const {
   fetchServiceCategories, fetchDoctors,
-  fetchDoctorSlotAvailability, createAppointment, createProcedureBooking
+  fetchDoctorAppointmentsForDate,
+  fetchDoctorWeeklySlots,
+  createAppointment, createProcedureBooking
 } = require('../services/api');
 const { saveSession, clearUserData } = require('../services/session');
 const { getMessage, getDayName } = require('../i18n');
 const { getDetailQuestions } = require('../visit-types');
+
+function getClinicLocalDateString(date = new Date()) {
+  const parts = new Intl.DateTimeFormat('en-CA', {
+    timeZone: 'Asia/Kolkata',
+    year: 'numeric',
+    month: '2-digit',
+    day: '2-digit',
+  }).formatToParts(date);
+  const year = parts.find((p) => p.type === 'year')?.value || '1970';
+  const month = parts.find((p) => p.type === 'month')?.value || '01';
+  const day = parts.find((p) => p.type === 'day')?.value || '01';
+  return `${year}-${month}-${day}`;
+}
 
 function short(text, max = 24) {
   if (!text) return '';
@@ -58,11 +73,11 @@ const ALL_TIME_SLOTS = [
 
 function getNextNDays(n) {
   const dates = [];
-  const today = new Date();
+  const today = new Date(getClinicLocalDateString());
   for (let i = 0; i < n; i++) {
     const d = new Date(today);
     d.setDate(today.getDate() + i);
-    dates.push({ dateStr: d.toISOString().split('T')[0], dayIndex: d.getDay() });
+    dates.push({ dateStr: getClinicLocalDateString(d), dayIndex: d.getDay() });
   }
   return dates;
 }
@@ -70,6 +85,29 @@ function getNextNDays(n) {
 function formatTimeSlot(hour) {
   const slot = ALL_TIME_SLOTS.find(s => s.hour === hour);
   return slot ? slot.label : `${hour}:00`;
+}
+
+function getClinicLocalWeekdayIndex(date) {
+  const weekday = new Intl.DateTimeFormat('en-US', {
+    timeZone: 'Asia/Kolkata',
+    weekday: 'short',
+  }).format(date);
+
+  const map = {
+    Sun: 6,
+    Mon: 0,
+    Tue: 1,
+    Wed: 2,
+    Thu: 3,
+    Fri: 4,
+    Sat: 5,
+  };
+
+  return map[weekday] ?? date.getDay();
+}
+
+function makeClinicLocalDate(dateStr) {
+  return new Date(`${dateStr}T00:00:00+05:30`);
 }
 
 // ==================== Sub-categories (from backend) ====================
@@ -185,15 +223,64 @@ async function handleShowDoctors(waId, session, lang) {
 async function handleShowDates(waId, session, lang) {
   try {
     const visitType = session.visit_type?.toLowerCase() === 'procedure' ? 'procedure' : 'consultation';
-    const availability = await fetchDoctorSlotAvailability(session.doctor_id, visitType, 7);
-    const availableDates = availability.map((item) => {
-      const dateObj = new Date(item.date);
-      return {
-        dateStr: item.date,
-        dayIndex: dateObj.getDay(),
-        slots: item.slots || []
-      };
-    });
+    const fromDate = getClinicLocalDateString();
+    const weeklySlots = await fetchDoctorWeeklySlots(session.doctor_id, visitType, session.clinic_id);
+
+    if (!weeklySlots || weeklySlots.length === 0) {
+      await sendWhatsAppMessage(waId, getMessage(lang, 'no_dates'));
+      session.state = 'SHOW_DOCTORS';
+      await saveSession(waId, session);
+      await handleShowDoctors(waId, session, lang);
+      return;
+    }
+
+    const availableDates = [];
+    const seenDates = new Set();
+    const searchStart = makeClinicLocalDate(fromDate);
+
+    for (let offset = 0; offset < 60 && availableDates.length < 14; offset++) {
+      const currentDate = new Date(searchStart);
+      currentDate.setDate(searchStart.getDate() + offset);
+      const dateStr = getClinicLocalDateString(currentDate);
+      if (seenDates.has(dateStr)) continue;
+
+      const weekday = getClinicLocalWeekdayIndex(currentDate);
+      const matchingSlots = weeklySlots.filter((slot) => {
+        const slotVisitType = (slot.visit_type || '').toLowerCase();
+        return slot.is_active !== false && slot.weekday === weekday && slotVisitType === visitType;
+      });
+
+      if (matchingSlots.length === 0) continue;
+
+      const bookedAppointments = await fetchDoctorAppointmentsForDate(session.doctor_id, dateStr);
+      const slots = matchingSlots
+        .map((slot) => {
+          const slotLabel = `${slot.start_time}-${slot.end_time}`;
+          const bookedCount = (bookedAppointments || []).filter((app) => {
+            if ((app.status || '').toLowerCase() === 'cancelled') return false;
+            return (app.slot_label || '') === slotLabel;
+          }).length;
+          const remaining = Math.max((slot.max_patients || 0) - bookedCount, 0);
+          if (remaining <= 0) return null;
+          return {
+            slot_label: slotLabel,
+            max_patients: slot.max_patients,
+            booked_patients: bookedCount,
+            remaining,
+            visit_type: slot.visit_type,
+          };
+        })
+        .filter(Boolean);
+
+      if (slots.length > 0) {
+        seenDates.add(dateStr);
+        availableDates.push({
+          dateStr,
+          dayIndex: weekday,
+          slots,
+        });
+      }
+    }
 
     if (availableDates.length === 0) {
       await sendWhatsAppMessage(waId, getMessage(lang, 'no_dates'));

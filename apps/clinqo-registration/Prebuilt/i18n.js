@@ -51,9 +51,9 @@ const MESSAGES = {
     od: "{index}. ଡାକ୍ତର {doctor} — {date} ({status})"
   },
   upcoming_with_code_item: {
-    en: "{index}. 📅 {date} | ⏰ {time}\n🔑 Code: {code}\n🔗 QR: {qr_url}",
-    hi: "{index}. 📅 {date} | ⏰ {time}\n🔑 कोड: {code}\n🔗 QR: {qr_url}",
-    od: "{index}. 📅 {date} | ⏰ {time}\n🔑 କୋଡ୍: {code}\n🔗 QR: {qr_url}"
+    en: "{index}. 📅 {date} | ⏰ {time}\n🔑 Check-in Code: {code}",
+    hi: "{index}. 📅 {date} | ⏰ {time}\n🔑 चेक-इन कोड: {code}",
+    od: "{index}. 📅 {date} | ⏰ {time}\n🔑 ଚେକ୍-ଇନ୍ କୋଡ୍: {code}"
   },
   procedure_list_item: {
     en: "{index}. {sub_category} — {date} ({status})",
@@ -246,9 +246,9 @@ const MESSAGES = {
     od: "କ୍ଷମା କରନ୍ତୁ, ଚୟନିତ ବିଶେଷତା ପାଇଁ ଏହି କ୍ଲିନିକରେ କୌଣସି ଡାକ୍ତର ଉପଲବ୍ଧ ନାହିଁ।"
   },
   dates_header: {
-    en: "📅 Available dates:\n",
-    hi: "📅 उपलब्ध तिथियाँ:\n",
-    od: "📅 ଉପଲବ୍ଧ ତାରିଖ:\n"
+    en: "📅 Next 14 available dates:\n",
+    hi: "📅 अगले 14 उपलब्ध तिथियाँ:\n",
+    od: "📅 ପରବର୍ତ୍ତୀ 14 ଉପଲବ୍ଧ ତାରିଖ:\n"
   },
   dates_item: {
     en: "{index}. {date} ({day})",
@@ -261,9 +261,9 @@ const MESSAGES = {
     od: "\nତାରିଖ ବାଛିବା ପାଇଁ ନମ୍ବର ଲେଖନ୍ତୁ:"
   },
   no_dates: {
-    en: "Sorry, no available dates in the next 7 days for this doctor. Please try another doctor.",
-    hi: "क्षमा करें, इस डॉक्टर के लिए अगले 7 दिनों में कोई उपलब्ध तिथि नहीं है। कृपया दूसरा डॉक्टर चुनें।",
-    od: "କ୍ଷମା କରନ୍ତୁ, ଏହି ଡାକ୍ତରଙ୍କ ପାଇଁ ପରବର୍ତ୍ତୀ 7 ଦିନରେ କୌଣସି ଉପଲବ୍ଧ ତାରିଖ ନାହିଁ। ଦୟାକରି ଅନ୍ୟ ଡାକ୍ତର ବାଛନ୍ତୁ।"
+    en: "Sorry, no available dates in the next 14 days for this doctor. Please try another doctor.",
+    hi: "क्षमा करें, इस डॉक्टर के लिए अगले 14 दिनों में कोई उपलब्ध तिथि नहीं है। कृपया दूसरा डॉक्टर चुनें।",
+    od: "କ୍ଷମା କରନ୍ତୁ, ଏହି ଡାକ୍ତରଙ୍କ ପାଇଁ ପରବର୍ତ୍ତୀ 14 ଦିନରେ କୌଣସି ଉପଲବ୍ଧ ତାରିଖ ନାହିଁ। ଦୟାକରି ଅନ୍ୟ ଡାକ୍ତର ବାଛନ୍ତୁ।"
   },
   slots_header: {
     en: "⏰ Available time slots:\n",

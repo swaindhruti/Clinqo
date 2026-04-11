@@ -63,10 +63,14 @@ async function searchPatientByPhone(phone) {
 
 // ==================== Appointments ====================
 
-async function fetchAppointmentsByPatient(patientId, limit = 10) {
+async function fetchAppointmentsByPatient(patientId, limit = 10, patientPhone = null) {
   try {
+    const params = { limit };
+    if (patientId) params.patient_id = patientId;
+    if (patientPhone) params.patient_phone = patientPhone;
+
     const response = await axios.get(`${API_BASE_URL}/appointments`, {
-      params: { patient_id: patientId, limit }, headers
+      params, headers
     });
     return response.data || [];
   } catch (error) {
@@ -91,6 +95,42 @@ async function fetchProcedureBookingsByPatient(patientId, patientPhone = null) {
     return fallback.data || [];
   } catch (error) {
     console.error('❌ Error fetching procedure bookings:', error.response?.data || error.message);
+    return [];
+  }
+}
+
+async function fetchUpcomingAppointmentsByPhone(patientPhone, fromDate, limit = 5) {
+  try {
+    const response = await axios.get(`${API_BASE_URL}/appointments`, {
+      params: {
+        patient_phone: patientPhone,
+        from_date: fromDate,
+        upcoming_only: true,
+        limit,
+      },
+      headers,
+    });
+    return response.data || [];
+  } catch (error) {
+    console.error('❌ Error fetching upcoming appointments:', error.response?.data || error.message);
+    return [];
+  }
+}
+
+async function fetchUpcomingProceduresByPhone(patientPhone, fromDate, limit = 5) {
+  try {
+    const response = await axios.get(`${API_BASE_URL}/procedures`, {
+      params: {
+        patient_phone: patientPhone,
+        from_date: fromDate,
+        upcoming_only: true,
+        limit,
+      },
+      headers,
+    });
+    return response.data || [];
+  } catch (error) {
+    console.error('❌ Error fetching upcoming procedures:', error.response?.data || error.message);
     return [];
   }
 }
@@ -131,14 +171,32 @@ async function fetchDoctorAppointmentsForDate(doctorId, date) {
   }
 }
 
-async function fetchDoctorSlotAvailability(doctorId, visitType = 'consultation', days = 14) {
+async function fetchDoctorSlotAvailability(doctorId, visitType = 'consultation', days = 14, fromDate = null) {
   try {
+    const params = { visit_type: visitType, days };
+    if (fromDate) params.from_date = fromDate;
     const response = await axios.get(`${API_BASE_URL}/appointments/doctors/${doctorId}/availability`, {
-      params: { visit_type: visitType, days }, headers
+      params, headers
     });
     return response.data || [];
   } catch (error) {
     console.error('❌ Error fetching slot availability:', error.response?.data || error.message);
+    return [];
+  }
+}
+
+async function fetchDoctorWeeklySlots(doctorId, visitType = null, clinicId = null) {
+  try {
+    const params = {};
+    if (visitType) params.visit_type = visitType;
+    if (clinicId) params.clinic_id = clinicId;
+    const response = await axios.get(`${API_BASE_URL}/doctors/${doctorId}/weekly-slots`, {
+      params,
+      headers,
+    });
+    return response.data || [];
+  } catch (error) {
+    console.error('❌ Error fetching weekly slots:', error.response?.data || error.message);
     return [];
   }
 }
@@ -198,10 +256,13 @@ module.exports = {
   searchPatientByPhone,
   fetchAppointmentsByPatient,
   fetchProcedureBookingsByPatient,
+  fetchUpcomingAppointmentsByPhone,
+  fetchUpcomingProceduresByPhone,
   fetchDoctors,
   fetchDoctorAvailability,
   fetchDoctorAppointmentsForDate,
   fetchDoctorSlotAvailability,
+  fetchDoctorWeeklySlots,
   createAppointment,
   createProcedureBooking,
   logGeneralQuery
