@@ -27,8 +27,18 @@ const { handleQueryLogged } = require('./handlers/query');
 const { getMessage, getGender, getLanguageCode } = require('./i18n');
 const { VISIT_TYPES, getVisitTypeByIndex, getDetailQuestions } = require('./visit-types');
 
-// Regex to extract clinic ID from QR message: "... (clinic_id)"
-const CLINIC_ID_REGEX = /\(([a-f0-9-]+)\)/i;
+// Regex to extract clinic UUID from message:
+// supports both "... (uuid)" and plain "... uuid ..." formats.
+const CLINIC_ID_BRACKET_REGEX = /\(([a-f0-9]{8}-[a-f0-9]{4}-[a-f0-9]{4}-[a-f0-9]{4}-[a-f0-9]{12})\)/i;
+const CLINIC_ID_UUID_REGEX = /\b([a-f0-9]{8}-[a-f0-9]{4}-[a-f0-9]{4}-[a-f0-9]{4}-[a-f0-9]{12})\b/i;
+
+function extractClinicIdFromMessage(text) {
+  if (!text) return null;
+  const bracketMatch = text.match(CLINIC_ID_BRACKET_REGEX);
+  if (bracketMatch) return bracketMatch[1];
+  const uuidMatch = text.match(CLINIC_ID_UUID_REGEX);
+  return uuidMatch ? uuidMatch[1] : null;
+}
 
 function getClinicLocalDateString(date = new Date()) {
   // Use clinic local time (IST) so upcoming items around midnight are not missed.
@@ -181,10 +191,9 @@ async function processIncomingMessage(messageData) {
 
       // ==================== INIT — Parse QR or show menu ====================
       case 'INIT': {
-        const match = messageText.match(CLINIC_ID_REGEX);
-        if (match) {
+        const clinicId = extractClinicIdFromMessage(messageText);
+        if (clinicId) {
           // QR scan — extract and verify clinic ID
-          const clinicId = match[1];
           const clinic = await fetchClinicById(clinicId);
           if (clinic) {
             session.clinic_id = clinic.id;
@@ -211,9 +220,8 @@ async function processIncomingMessage(messageData) {
       case 'MENU': {
         if (!['1', '2'].includes(messageText)) {
           // Check if this is a QR message that came while in MENU state
-          const match = messageText.match(CLINIC_ID_REGEX);
-          if (match) {
-            const clinicId = match[1];
+          const clinicId = extractClinicIdFromMessage(messageText);
+          if (clinicId) {
             const clinic = await fetchClinicById(clinicId);
             if (clinic) {
               session.clinic_id = clinic.id;

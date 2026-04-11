@@ -1,6 +1,9 @@
 from typing import Optional, List
 from uuid import UUID
 from datetime import date
+import re
+import random
+import string
 from app.repositories.doctor_repo import DoctorRepository
 from app.models import DoctorMaster, DoctorDailyAvailability, DoctorWeeklySlot
 from app.core.logging import get_logger
@@ -11,12 +14,32 @@ logger = get_logger(__name__)
 class DoctorService:
     def __init__(self, repo: DoctorRepository):
         self.repo = repo
+
+    async def _generate_unique_code(self, name: str) -> str:
+        words = [w for w in re.split(r"\s+", name.strip()) if w]
+        initials = "".join(word[0] for word in words[:3]).upper() if words else "DOC"
+        initials = initials or "DOC"
+
+        for _ in range(20):
+            suffix = "".join(random.choices(string.digits, k=4))
+            candidate = f"{initials}{suffix}"
+            existing = await self.repo.get_by_code(candidate)
+            if not existing:
+                return candidate
+
+        fallback = "".join(random.choices(string.ascii_uppercase + string.digits, k=8))
+        return f"DOC{fallback}"
     
     async def create_doctor(self, doctor_data: dict) -> DoctorMaster:
         """Create a new doctor"""
-        existing = await self.repo.get_by_code(doctor_data["code"])
-        if existing:
-            raise ValueError(f"Doctor with code {doctor_data['code']} already exists")
+        code = (doctor_data.get("code") or "").strip()
+        if code:
+            existing = await self.repo.get_by_code(code)
+            if existing:
+                raise ValueError(f"Doctor with code {code} already exists")
+            doctor_data["code"] = code
+        else:
+            doctor_data["code"] = await self._generate_unique_code(doctor_data.get("name", "DOC"))
         
         doctor = await self.repo.create(doctor_data)
         logger.info("Doctor created", doctor_id=str(doctor.id), code=doctor.code)

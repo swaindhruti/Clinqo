@@ -82,7 +82,7 @@ class ServiceCategoryResponse(BaseModel):
 
 class DoctorCreate(BaseModel):
     name: str = Field(..., min_length=1, max_length=200)
-    code: str = Field(..., min_length=1, max_length=50)
+    code: Optional[str] = Field(None, max_length=50)
     specialty: Optional[str] = Field(None, max_length=100)
     clinic_id: Optional[UUID] = None
 
