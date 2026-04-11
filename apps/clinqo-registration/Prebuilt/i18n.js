@@ -356,9 +356,9 @@ const MESSAGES = {
     od: "📋 ଆପଏଣ୍ଟମେଣ୍ଟ ସାରାଂଶ:\n"
   },
   confirm_details: {
-    en: "📝 Name: {name}\n🎂 Age: {age}\n👤 Gender: {sex}\n🆔 Patient ID: {patient_id}\n🏥 Clinic: {clinic}\n👨‍⚕️ Doctor: {doctor}\n📅 Date: {date}\n⏰ Time: {time}\n🏷️ Type: {type}",
-    hi: "📝 नाम: {name}\n🎂 उम्र: {age}\n👤 लिंग: {sex}\n🆔 मरीज आईडी: {patient_id}\n🏥 क्लिनिक: {clinic}\n👨‍⚕️ डॉक्टर: {doctor}\n📅 तिथि: {date}\n⏰ समय: {time}\n🏷️ प्रकार: {type}",
-    od: "📝 ନାମ: {name}\n🎂 ବୟସ: {age}\n👤 ଲିଙ୍ଗ: {sex}\n🆔 ରୋଗୀ ଆଇଡି: {patient_id}\n🏥 କ୍ଲିନିକ୍: {clinic}\n👨‍⚕️ ଡାକ୍ତର: {doctor}\n📅 ତାରିଖ: {date}\n⏰ ସମୟ: {time}\n🏷️ ପ୍ରକାର: {type}"
+    en: "📝 Name: {name}\n🎂 Age: {age}\n👤 Gender: {sex}\n🆔 Patient ID: {patient_id}\n🏥 Clinic: {clinic}\n👨‍⚕️ Doctor: {doctor}\n📅 Date: {date}\n⏰ Time: {time}",
+    hi: "📝 नाम: {name}\n🎂 उम्र: {age}\n👤 लिंग: {sex}\n🆔 मरीज आईडी: {patient_id}\n🏥 क्लिनिक: {clinic}\n👨‍⚕️ डॉक्टर: {doctor}\n📅 तिथि: {date}\n⏰ समय: {time}",
+    od: "📝 ନାମ: {name}\n🎂 ବୟସ: {age}\n👤 ଲିଙ୍ଗ: {sex}\n🆔 ରୋଗୀ ଆଇଡି: {patient_id}\n🏥 କ୍ଲିନିକ୍: {clinic}\n👨‍⚕️ ଡାକ୍ତର: {doctor}\n📅 ତାରିଖ: {date}\n⏰ ସମୟ: {time}"
   },
   confirm_prompt: {
     en: "\nConfirm this appointment?\n1. ✅ Yes\n2. ❌ No (start over from appointment type)",
@@ -468,9 +468,9 @@ const MESSAGES = {
   },
   // --- Procedure confirmation (no doctor/date/slot) ---
   procedure_confirm_details: {
-    en: "📋 Procedure Request Summary:\n\n📝 Name: {name}\n🏥 Clinic: {clinic}\n🏷️ Type: {type}\n📂 Sub-category: {sub_category}\n💰 Fee: {fee}\n📄 Concern: {concern}",
-    hi: "📋 प्रक्रिया अनुरोध सारांश:\n\n📝 नाम: {name}\n🏥 क्लिनिक: {clinic}\n🏷️ प्रकार: {type}\n📂 उप-श्रेणी: {sub_category}\n💰 शुल्क: {fee}\n📄 समस्या: {concern}",
-    od: "📋 ପ୍ରକ୍ରିୟା ଅନୁରୋଧ ସାରାଂଶ:\n\n📝 ନାମ: {name}\n🏥 କ୍ଲିନିକ୍: {clinic}\n🏷️ ପ୍ରକାର: {type}\n📂 ଉପ-ଶ୍ରେଣୀ: {sub_category}\n💰 ଶୁଳ୍କ: {fee}\n📄 ସମସ୍ୟା: {concern}"
+    en: "📋 Procedure Request Summary:\n\n📝 Name: {name}\n🏥 Clinic: {clinic}\n📂 Sub-category: {sub_category}\n💰 Fee: {fee}\n📄 Concern: {concern}",
+    hi: "📋 प्रक्रिया अनुरोध सारांश:\n\n📝 नाम: {name}\n🏥 क्लिनिक: {clinic}\n📂 उप-श्रेणी: {sub_category}\n💰 शुल्क: {fee}\n📄 समस्या: {concern}",
+    od: "📋 ପ୍ରକ୍ରିୟା ଅନୁରୋଧ ସାରାଂଶ:\n\n📝 ନାମ: {name}\n🏥 କ୍ଲିନିକ୍: {clinic}\n📂 ଉପ-ଶ୍ରେଣୀ: {sub_category}\n💰 ଶୁଳ୍କ: {fee}\n📄 ସମସ୍ୟା: {concern}"
   },
   procedure_confirmed: {
     en: "✅ Your procedure request has been submitted!\n\n{details}\n\nOur clinic team will contact you shortly to schedule your procedure.\n\nSend any message to book another appointment. 👋",
@@ -490,9 +490,9 @@ const MESSAGES = {
   },
   // --- Updated confirmation with fee + visit type ---
   confirm_consultation_details: {
-    en: "📋 Consultation Summary:\n\n📝 Name: {name}\n🏥 Clinic: {clinic}\n🏷️ Type: {type}\n📂 Sub-category: {sub_category}\n💰 Fee: {fee}\n👨‍⚕️ Doctor: {doctor}\n📅 Date: {date}\n⏰ Time: {time}\n📄 Concern: {concern}",
-    hi: "📋 परामर्श सारांश:\n\n📝 नाम: {name}\n🏥 क्लिनिक: {clinic}\n🏷️ प्रकार: {type}\n📂 उप-श्रेणी: {sub_category}\n💰 शुल्क: {fee}\n👨‍⚕️ डॉक्टर: {doctor}\n📅 तिथि: {date}\n⏰ समय: {time}\n📄 समस्या: {concern}",
-    od: "📋 ପରାମର୍ଶ ସାରାଂଶ:\n\n📝 ନାମ: {name}\n🏥 କ୍ଲିନିକ୍: {clinic}\n🏷️ ପ୍ରକାର: {type}\n📂 ଉପ-ଶ୍ରେଣୀ: {sub_category}\n💰 ଶୁଳ୍କ: {fee}\n👨‍⚕️ ଡାକ୍ତର: {doctor}\n📅 ତାରିଖ: {date}\n⏰ ସମୟ: {time}\n📄 ସମସ୍ୟା: {concern}"
+    en: "📋 Consultation Summary:\n\n📝 Name: {name}\n🏥 Clinic: {clinic}\n📂 Sub-category: {sub_category}\n💰 Fee: {fee}\n👨‍⚕️ Doctor: {doctor}\n📅 Date: {date}\n⏰ Time: {time}\n📄 Concern: {concern}",
+    hi: "📋 परामर्श सारांश:\n\n📝 नाम: {name}\n🏥 क्लिनिक: {clinic}\n📂 उप-श्रेणी: {sub_category}\n💰 शुल्क: {fee}\n👨‍⚕️ डॉक्टर: {doctor}\n📅 तिथि: {date}\n⏰ समय: {time}\n📄 समस्या: {concern}",
+    od: "📋 ପରାମର୍ଶ ସାରାଂଶ:\n\n📝 ନାମ: {name}\n🏥 କ୍ଲିନିକ୍: {clinic}\n📂 ଉପ-ଶ୍ରେଣୀ: {sub_category}\n💰 ଶୁଳ୍କ: {fee}\n👨‍⚕️ ଡାକ୍ତର: {doctor}\n📅 ତାରିଖ: {date}\n⏰ ସମୟ: {time}\n📄 ସମସ୍ୟା: {concern}"
   }
 };
 
