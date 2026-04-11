@@ -13,6 +13,7 @@ import {
   XCircle,
   Eye,
   Trash2,
+  Copy,
 } from "lucide-react";
 import { DataTable } from "@/components/ui/data-table";
 import { ColumnDef } from "@tanstack/react-table";
@@ -85,6 +86,24 @@ export function ClinicManagement() {
   const [credentialError, setCredentialError] = useState<string | null>(null);
   const [deletingClinicId, setDeletingClinicId] = useState<string | null>(null);
   const [deletingServiceId, setDeletingServiceId] = useState<string | null>(null);
+  const [copiedClinicId, setCopiedClinicId] = useState<string | null>(null);
+
+  const buildClinicChatLink = (clinicId: string) => {
+    const phoneNumber = "9348840861";
+    const message = `Book an appointment ${clinicId}`;
+    return `https://wa.me/${phoneNumber}?text=${encodeURIComponent(message)}`;
+  };
+
+  const handleCopyClinicChatLink = async (clinicId: string) => {
+    const link = buildClinicChatLink(clinicId);
+    try {
+      await navigator.clipboard.writeText(link);
+      setCopiedClinicId(clinicId);
+      setTimeout(() => setCopiedClinicId((current) => (current === clinicId ? null : current)), 2000);
+    } catch {
+      alert(`Copy this link: ${link}`);
+    }
+  };
 
   const { data: liveClinics } = useQuery({
     queryKey: ["admin-clinics"],
@@ -322,6 +341,15 @@ export function ClinicManagement() {
             >
               <Eye className="mr-1 h-3.5 w-3.5" />
               View Details
+            </Button>
+            <Button
+              variant="outline"
+              size="sm"
+              className="h-8"
+              onClick={() => handleCopyClinicChatLink(clinic.id)}
+            >
+              <Copy className="mr-1 h-3.5 w-3.5" />
+              {copiedClinicId === clinic.id ? "Copied" : "Copy Chat Link"}
             </Button>
             {clinic.status === "applicant" && (
               <>
