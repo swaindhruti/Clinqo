@@ -10,8 +10,8 @@ const {
   createAppointment, createProcedureBooking
 } = require('../services/api');
 const { saveSession, clearUserData } = require('../services/session');
-const { getMessage, getDayName } = require('../i18n');
-const { getDetailQuestions } = require('../visit-types');
+const { getMessage, getDayName } = require('../core/i18n');
+const { getDetailQuestions } = require('../core/visit-types');
 
 function getClinicLocalDateString(date = new Date()) {
   const parts = new Intl.DateTimeFormat('en-CA', {

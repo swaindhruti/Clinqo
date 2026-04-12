@@ -176,7 +176,10 @@ async def list_all_appointments(
         return result
     except Exception as e:
         logger.error("Failed to list appointments", error=str(e))
-        return []
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail={"error": "InternalError", "message": "Failed to list appointments"}
+        )
 
 
 @router.get(
@@ -218,7 +221,10 @@ async def list_doctor_appointments(
         return result
     except Exception as e:
         logger.error("Failed to list doctor appointments", doctor_id=str(doctor_id), error=str(e))
-        return []
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail={"error": "InternalError", "message": "Failed to list doctor appointments"}
+        )
 
 
 @router.post(

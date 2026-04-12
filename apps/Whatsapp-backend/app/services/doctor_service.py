@@ -4,6 +4,7 @@ from datetime import date
 import re
 import random
 import string
+from sqlalchemy.exc import IntegrityError
 from app.repositories.doctor_repo import DoctorRepository
 from app.models import DoctorMaster, DoctorDailyAvailability, DoctorWeeklySlot
 from app.core.logging import get_logger
@@ -32,7 +33,7 @@ class DoctorService:
     
     async def create_doctor(self, doctor_data: dict) -> DoctorMaster:
         """Create a new doctor"""
-        code = (doctor_data.get("code") or "").strip()
+        code = (doctor_data.get("code") or "").strip().upper()
         if code:
             existing = await self.repo.get_by_code(code)
             if existing:
@@ -40,10 +41,24 @@ class DoctorService:
             doctor_data["code"] = code
         else:
             doctor_data["code"] = await self._generate_unique_code(doctor_data.get("name", "DOC"))
-        
-        doctor = await self.repo.create(doctor_data)
-        logger.info("Doctor created", doctor_id=str(doctor.id), code=doctor.code)
-        return doctor
+
+        attempts = 0
+        while True:
+            try:
+                doctor = await self.repo.create(doctor_data)
+                logger.info("Doctor created", doctor_id=str(doctor.id), code=doctor.code)
+                return doctor
+            except IntegrityError as exc:
+                attempts += 1
+                error_text = str(getattr(exc, "orig", exc)).lower()
+                if "doctor_masters_code_key" in error_text or "unique" in error_text:
+                    if code and attempts == 1:
+                        # Re-try once with a fresh auto-generated code in case of a race.
+                        doctor_data["code"] = await self._generate_unique_code(doctor_data.get("name", "DOC"))
+                        code = doctor_data["code"]
+                        continue
+                    raise ValueError("Doctor code already exists")
+                raise ValueError("Failed to create doctor")
     
     async def get_doctor(self, doctor_id: UUID) -> Optional[DoctorMaster]:
         """Get doctor by ID"""

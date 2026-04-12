@@ -71,7 +71,7 @@ export function DoctorManagement() {
   const queryClient = useQueryClient();
   const [showForm, setShowForm] = useState(false);
   const [isSubmitting, setIsSubmitting] = useState(false);
-  const [form, setForm] = useState({ name: "", code: "", specialty: "", clinicId: "" });
+  const [form, setForm] = useState({ name: "", specialty: "", clinicId: "" });
   const [selectedDoctorId, setSelectedDoctorId] = useState("");
   const [selectedDoctorForDetails, setSelectedDoctorForDetails] = useState<string | null>(null);
   const [isSavingSlot, setIsSavingSlot] = useState(false);
@@ -131,12 +131,11 @@ export function DoctorManagement() {
     try {
       await apiClient.post("/doctors", {
         name: form.name,
-        code: form.code,
         specialty: form.specialty || null,
         clinic_id: form.clinicId || null,
       });
       setShowForm(false);
-      setForm({ name: "", code: "", specialty: "", clinicId: "" });
+      setForm({ name: "", specialty: "", clinicId: "" });
       await queryClient.invalidateQueries({ queryKey: ["admin-doctors"] });
     } finally {
       setIsSubmitting(false);
@@ -394,7 +393,6 @@ export function DoctorManagement() {
       {showForm ? (
         <div className="rounded-xl border border-neutral-200 bg-white p-4 shadow-sm grid gap-3 md:grid-cols-2">
           <input className="rounded-lg border border-neutral-200 px-3 py-2 text-sm" placeholder="Doctor name" value={form.name} onChange={(e) => setForm((p) => ({ ...p, name: e.target.value }))} />
-          <input className="rounded-lg border border-neutral-200 px-3 py-2 text-sm" placeholder="Doctor code" value={form.code} onChange={(e) => setForm((p) => ({ ...p, code: e.target.value }))} />
           <input className="rounded-lg border border-neutral-200 px-3 py-2 text-sm" placeholder="Specialty" value={form.specialty} onChange={(e) => setForm((p) => ({ ...p, specialty: e.target.value }))} />
           <select className="rounded-lg border border-neutral-200 px-3 py-2 text-sm" value={form.clinicId} onChange={(e) => setForm((p) => ({ ...p, clinicId: e.target.value }))}>
             <option value="">Assign clinic (optional)</option>

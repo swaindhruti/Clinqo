@@ -3,56 +3,47 @@
 import { Clock, Building2, Loader2 } from "lucide-react";
 import { useQuery } from "@tanstack/react-query";
 import { apiClient } from "@/lib/api-client";
-import { format, addDays, startOfWeek } from "date-fns";
-import { DoctorAvailability } from "@/types/api";
+import { DoctorWeeklySlot } from "@/types/api";
 import { getStoredUser } from "@/lib/auth";
+
+type ClinicApi = {
+  id: string;
+  name: string;
+};
+
+const DAYS_OF_WEEK = [
+  "Monday",
+  "Tuesday",
+  "Wednesday",
+  "Thursday",
+  "Friday",
+  "Saturday",
+  "Sunday",
+];
 
 export function ScheduleSection() {
   const currentUser = getStoredUser();
   const doctorId = currentUser?.doctor_id || "";
 
-  // Fetch a 7-day view starting from the beginning of the current week (e.g., Sunday or Monday)
-  const today = new Date();
-  const weekStart = startOfWeek(today, { weekStartsOn: 1 }); // Start on Monday
-  const weekDates = Array.from({ length: 7 }).map((_, i) =>
-    format(addDays(weekStart, i), "yyyy-MM-dd"),
-  );
-
-  // Define the days of the week consistently
-  const daysOfWeek = [
-    "Monday",
-    "Tuesday",
-    "Wednesday",
-    "Thursday",
-    "Friday",
-    "Saturday",
-    "Sunday",
-  ];
-
-  // Fetch using multiple parallel queries or a single timeline if the backend supports range
-  // Since the specific endpoint structure described handles 1 date at a time via ?date=
-  // we will fetch just this week's records in parallel using useQueries if we had it,
-  // but to keep it simple with standard useQuery we can fetch a few, or simulate a week structure
-  // Wait, let's fetch today's availability as a primary indicator, or we will query the closest available dates.
-  // Actually, the implementation summary suggests `GET /api/v1/doctors/{id}/availability?date=`.
-  // To avoid blasting the backend with 7 requests, we'll fetch today's date specifically.
-  // Since building a full 7-day calendar view without a batch endpoint is tricky, we'll fetch the next 3 days.
-
   const {
-    data: rawAvailability,
+    data: weeklySlots,
     isLoading,
     error,
   } = useQuery({
-    queryKey: ["availability", doctorId, format(today, "yyyy-MM-dd")],
+    queryKey: ["doctor-weekly-schedule", doctorId],
     queryFn: () => {
       if (!doctorId) {
         throw new Error("Doctor profile is missing from the current session.");
       }
 
-      return apiClient.get<DoctorAvailability>(
-        `/doctors/${doctorId}/availability?date=${format(today, "yyyy-MM-dd")}`,
-      );
+      return apiClient.get<DoctorWeeklySlot[]>(`/doctors/${doctorId}/weekly-slots`);
     },
+    enabled: Boolean(doctorId),
+  });
+
+  const { data: clinics } = useQuery({
+    queryKey: ["doctor-weekly-schedule-clinics"],
+    queryFn: () => apiClient.get<ClinicApi[]>("/clinics"),
     enabled: Boolean(doctorId),
   });
 
@@ -64,29 +55,39 @@ export function ScheduleSection() {
     );
   }
 
-  // Since we only have one date fetched optimally, we'll mock the rest of the week visually
-  // but use the real data for 'Today'. In a real scenario, we'd need a batch endpoint.
-  const schedule = daysOfWeek.map((dayName, index) => {
-    const isToday = dayName === format(today, "EEEE");
+  const clinicMap = new Map((clinics || []).map((clinic) => [clinic.id, clinic.name]));
 
-    // Inject real data if it's today
-    if (isToday && rawAvailability) {
+  const schedule = DAYS_OF_WEEK.map((dayName, weekdayIndex) => {
+    const daySlots = (weeklySlots || [])
+      .filter((slot) => slot.weekday === weekdayIndex && slot.is_active)
+      .sort((first, second) => first.start_time.localeCompare(second.start_time));
+
+    if (daySlots.length === 0) {
       return {
         day: dayName,
-        start: "09:00", // The backend doesn't seem to store specific hours, just `is_present`
-        end: "17:00",
-        active: rawAvailability.is_present,
-        clinic: "Main Hospital (Real Data)",
+        start: "",
+        end: "",
+        active: false,
+        clinic: "",
       };
     }
 
-    // Default placeholder for other days to maintain the UI structure
+    const firstSlot = daySlots[0];
+    const lastSlot = daySlots[daySlots.length - 1];
+    const clinicNames = Array.from(
+      new Set(
+        daySlots
+          .map((slot) => (slot.clinic_id ? clinicMap.get(slot.clinic_id) : null))
+          .filter((value): value is string => Boolean(value))
+      )
+    );
+
     return {
       day: dayName,
-      start: index < 5 ? "09:00" : "",
-      end: index < 5 ? "17:00" : "",
-      active: index < 5,
-      clinic: index < 5 ? "General Clinic (Demo)" : "",
+      start: firstSlot.start_time,
+      end: lastSlot.end_time,
+      active: true,
+      clinic: clinicNames.length > 0 ? clinicNames.join(", ") : "Assigned clinic",
     };
   });
 

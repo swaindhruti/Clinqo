@@ -17,7 +17,7 @@ type Tab = "today" | "past" | "upcoming";
 
 // No specific Doctor ID needed for global clinic view
 
-// Mock Data Structure
+// Normalized appointment view model
 type UiAppointment = {
   id: string;
   patient: string;

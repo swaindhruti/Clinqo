@@ -48,6 +48,8 @@ class Patient(Base):
     created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=datetime.utcnow)
     
     appointments: Mapped[list["Appointment"]] = relationship("Appointment", back_populates="patient")
+    general_queries: Mapped[list["GeneralQuery"]] = relationship("GeneralQuery", back_populates="patient")
+    procedure_bookings: Mapped[list["ProcedureBooking"]] = relationship("ProcedureBooking", back_populates="patient")
 
 
 class Clinic(Base):
@@ -62,6 +64,9 @@ class Clinic(Base):
     
     doctors: Mapped[list["DoctorMaster"]] = relationship("DoctorMaster", back_populates="clinic")
     service_categories: Mapped[list["ServiceCategory"]] = relationship("ServiceCategory", back_populates="clinic")
+    users: Mapped[list["User"]] = relationship("User", back_populates="clinic")
+    general_queries: Mapped[list["GeneralQuery"]] = relationship("GeneralQuery", back_populates="clinic")
+    procedure_bookings: Mapped[list["ProcedureBooking"]] = relationship("ProcedureBooking", back_populates="clinic")
 
 
 class ServiceCategory(Base):
@@ -91,6 +96,7 @@ class DoctorMaster(Base):
     created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=datetime.utcnow)
     
     clinic: Mapped[Optional["Clinic"]] = relationship("Clinic", back_populates="doctors")
+    users: Mapped[list["User"]] = relationship("User", back_populates="doctor")
     availabilities: Mapped[list["DoctorDailyAvailability"]] = relationship("DoctorDailyAvailability", back_populates="doctor")
     capacities: Mapped[list["DoctorDailyCapacity"]] = relationship("DoctorDailyCapacity", back_populates="doctor")
     weekly_slots: Mapped[list["DoctorWeeklySlot"]] = relationship("DoctorWeeklySlot", back_populates="doctor")
@@ -228,8 +234,8 @@ class User(Base):
     is_active: Mapped[bool] = mapped_column(Boolean, default=True)
     created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=datetime.utcnow)
     
-    clinic: Mapped[Optional["Clinic"]] = relationship("Clinic")
-    doctor: Mapped[Optional["DoctorMaster"]] = relationship("DoctorMaster")
+    clinic: Mapped[Optional["Clinic"]] = relationship("Clinic", back_populates="users")
+    doctor: Mapped[Optional["DoctorMaster"]] = relationship("DoctorMaster", back_populates="users")
 
 
 class GeneralQuery(Base):
@@ -244,8 +250,8 @@ class GeneralQuery(Base):
     status: Mapped[str] = mapped_column(String(50), nullable=False, default="pending")
     created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=datetime.utcnow)
     
-    clinic: Mapped["Clinic"] = relationship("Clinic")
-    patient: Mapped[Optional["Patient"]] = relationship("Patient")
+    clinic: Mapped["Clinic"] = relationship("Clinic", back_populates="general_queries")
+    patient: Mapped[Optional["Patient"]] = relationship("Patient", back_populates="general_queries")
 
 
 class ProcedureBooking(Base):
@@ -262,8 +268,8 @@ class ProcedureBooking(Base):
     created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=datetime.utcnow)
     updated_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=datetime.utcnow, onupdate=datetime.utcnow)
 
-    clinic: Mapped["Clinic"] = relationship("Clinic")
-    patient: Mapped["Patient"] = relationship("Patient")
+    clinic: Mapped["Clinic"] = relationship("Clinic", back_populates="procedure_bookings")
+    patient: Mapped["Patient"] = relationship("Patient", back_populates="procedure_bookings")
 
     __table_args__ = (
         Index("ix_procedure_booking_clinic_date", "clinic_id", "preferred_date"),

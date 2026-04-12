@@ -1,4 +1,4 @@
-const redisClient = require('../redis-config');
+const redisClient = require('../config/redis-config');
 const { sendWhatsAppMessage } = require('./whatsapp');
 const { getSession, getCollectedInfo, updateCollectedInfo, updateSessionState, clearUserData } = require('./session');
 const { createPatientRecord, fetchDoctors } = require('./api');

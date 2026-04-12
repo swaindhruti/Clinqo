@@ -7,8 +7,20 @@ const path = require('path');
 
 dotenv.config({ path: path.join(__dirname, '..', '.env') });
 
-const API_BASE_URL = process.env.API_BASE_URL || 'http://localhost:8000/api/v1';
+const API_BASE_URL =
+  process.env.API_BASE_URL ||
+  process.env.BACKEND_API_URL ||
+  process.env.WHATSAPP_BACKEND_URL ||
+  'http://localhost:8000/api/v1';
 const headers = { 'Content-Type': 'application/json' };
+
+function unwrapArrayResponse(data) {
+  if (Array.isArray(data)) return data;
+  if (Array.isArray(data?.data)) return data.data;
+  if (Array.isArray(data?.items)) return data.items;
+  if (Array.isArray(data?.results)) return data.results;
+  return [];
+}
 
 // ==================== Clinics ====================
 
@@ -24,8 +36,9 @@ async function fetchClinicById(clinicId) {
     // the clinic from the list response.
     try {
       const listResponse = await axios.get(`${API_BASE_URL}/clinics`, { headers });
-      const clinics = Array.isArray(listResponse.data) ? listResponse.data : [];
-      const clinic = clinics.find((item) => item.id === clinicId) || null;
+      const clinics = unwrapArrayResponse(listResponse.data);
+      const normalizedClinicId = String(clinicId || '').trim().toLowerCase();
+      const clinic = clinics.find((item) => String(item?.id || '').trim().toLowerCase() === normalizedClinicId) || null;
       if (clinic) return clinic;
     } catch (_fallbackError) {
       // ignore fallback failure; original error is logged below
@@ -41,7 +54,7 @@ async function fetchServiceCategories(clinicId, visitType) {
     const response = await axios.get(`${API_BASE_URL}/clinics/${clinicId}/services`, {
       params: { visit_type: visitType }, headers
     });
-    return response.data || [];
+    return unwrapArrayResponse(response.data);
   } catch (error) {
     console.error('❌ Error fetching service categories:', error.response?.data || error.message);
     return [];
@@ -155,7 +168,7 @@ async function fetchDoctors(specialty, clinicId) {
     const response = await axios.get(`${API_BASE_URL}/doctors`, {
       params: { specialty, clinic_id: clinicId }, headers
     });
-    return response.data || [];
+    return unwrapArrayResponse(response.data);
   } catch (error) {
     console.error('❌ Error fetching doctors:', error.response?.data || error.message);
     return [];
@@ -207,7 +220,7 @@ async function fetchDoctorWeeklySlots(doctorId, visitType = null, clinicId = nul
       params,
       headers,
     });
-    return response.data || [];
+    return unwrapArrayResponse(response.data);
   } catch (error) {
     console.error('❌ Error fetching weekly slots:', error.response?.data || error.message);
     return [];

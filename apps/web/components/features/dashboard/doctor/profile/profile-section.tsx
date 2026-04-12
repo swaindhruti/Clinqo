@@ -1,32 +1,98 @@
-import { User, Mail, Phone, MapPin, Award, Building2 } from "lucide-react";
+"use client";
 
-// Mock Data for the Doctor Profile
-const DOCTOR_PROFILE = {
-  name: "Dr. Sarah Jenkins",
-  specialization: "Senior Cardiologist",
-  email: "sarah.jenkins@clinqo.com",
-  phone: "+1 (555) 123-4567",
-  location: "New York, NY",
-  experience: "15+ Years",
-  about:
-    "Dr. Jenkins is a renowned cardiologist specializing in preventive cardiology and heart failure. She is committed to providing comprehensive cardiovascular care with a focus on early detection and lifestyle modifications.",
-  clinics: [
-    {
-      id: "cli_1",
-      name: "Downtown Medical Center",
-      role: "Lead Cardiologist",
-      address: "120 Broadway, New York, NY",
-    },
-    {
-      id: "cli_2",
-      name: "Uptown Heart Clinic",
-      role: "Consultant",
-      address: "450 5th Avenue, New York, NY",
-    },
-  ],
+import { useMemo } from "react";
+import { useQuery } from "@tanstack/react-query";
+import { User, Mail, Phone, MapPin, Award, Building2, Loader2, AlertCircle } from "lucide-react";
+
+import { apiClient } from "@/lib/api-client";
+import { getStoredUser } from "@/lib/auth";
+
+type DoctorDetailsApi = {
+  id: string;
+  name: string;
+  code: string;
+  specialty?: string | null;
+  clinic_id?: string | null;
+  created_at: string;
+};
+
+type ClinicApi = {
+  id: string;
+  name: string;
+  address?: string | null;
+  phone?: string | null;
 };
 
 export function ProfileSection() {
+  const currentUser = getStoredUser();
+  const doctorId = currentUser?.doctor_id || "";
+
+  const {
+    data: doctorDetails,
+    isLoading: isDoctorLoading,
+    error: doctorError,
+  } = useQuery({
+    queryKey: ["doctor-profile-details", doctorId],
+    queryFn: () => apiClient.get<DoctorDetailsApi>(`/doctors/${doctorId}`),
+    enabled: Boolean(doctorId),
+  });
+
+  const { data: clinics } = useQuery({
+    queryKey: ["doctor-profile-clinics"],
+    queryFn: () => apiClient.get<ClinicApi[]>("/clinics"),
+    enabled: Boolean(doctorId),
+  });
+
+  const { data: weeklySlots } = useQuery({
+    queryKey: ["doctor-profile-weekly-slots", doctorId],
+    queryFn: () => apiClient.get<Array<{ clinic_id?: string | null }>>(`/doctors/${doctorId}/weekly-slots`),
+    enabled: Boolean(doctorId),
+  });
+
+  const associatedClinics = useMemo(() => {
+    const clinicIds = new Set<string>();
+    if (doctorDetails?.clinic_id) {
+      clinicIds.add(doctorDetails.clinic_id);
+    }
+
+    (weeklySlots || []).forEach((slot) => {
+      if (slot.clinic_id) {
+        clinicIds.add(slot.clinic_id);
+      }
+    });
+
+    return (clinics || []).filter((clinic) => clinicIds.has(clinic.id));
+  }, [doctorDetails?.clinic_id, weeklySlots, clinics]);
+
+  if (!doctorId) {
+    return (
+      <div className="rounded-xl border border-amber-200 bg-amber-50 p-6 text-sm text-amber-800">
+        Doctor profile is not linked to this account.
+      </div>
+    );
+  }
+
+  if (isDoctorLoading) {
+    return (
+      <div className="rounded-xl border border-neutral-200 bg-white py-16 text-center">
+        <Loader2 className="mx-auto h-8 w-8 animate-spin text-blue-500" />
+        <p className="mt-3 text-sm text-neutral-500">Loading doctor profile...</p>
+      </div>
+    );
+  }
+
+  if (doctorError || !doctorDetails) {
+    return (
+      <div className="flex items-center gap-2 rounded-xl border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-700">
+        <AlertCircle className="h-4 w-4" />
+        Failed to load doctor profile data.
+      </div>
+    );
+  }
+
+  const specialtyLabel = doctorDetails.specialty || "General Practitioner";
+  const locationLabel = associatedClinics[0]?.address || "Not available";
+
   return (
     <div className="flex flex-col gap-6 animate-in slide-in-from-bottom-4 duration-500">
       {/* Header Profile Card */}
@@ -40,16 +106,16 @@ export function ProfileSection() {
 
           <div className="text-center md:text-left flex-1 pt-1">
             <h2 className="text-2xl font-bold tracking-tight text-neutral-900">
-              {DOCTOR_PROFILE.name}
+              {doctorDetails.name}
             </h2>
             <p className="text-blue-600 font-bold text-[15px] mt-1">
-              {DOCTOR_PROFILE.specialization}
+              {specialtyLabel}
             </p>
           </div>
 
           <div className="flex items-center gap-2 rounded-full bg-white border border-neutral-200 px-5 py-2.5 text-sm font-bold text-neutral-700 shadow-sm shrink-0 md:mt-2">
             <Award className="w-4 h-4 text-blue-600" />
-            <span>{DOCTOR_PROFILE.experience} Experience</span>
+            <span>Doctor Code: {doctorDetails.code}</span>
           </div>
         </div>
       </div>
@@ -66,7 +132,7 @@ export function ProfileSection() {
             </div>
             <div className="p-5 md:p-6">
               <p className="text-neutral-600 leading-relaxed text-[15px]">
-                {DOCTOR_PROFILE.about}
+                {doctorDetails.name} specializes in {specialtyLabel.toLowerCase()} and is currently part of the Clinqo network.
               </p>
             </div>
           </div>
@@ -86,7 +152,7 @@ export function ProfileSection() {
 
             <div className="p-5 md:p-6">
               <div className="flex flex-col gap-3">
-                {DOCTOR_PROFILE.clinics.map((clinic) => (
+                {associatedClinics.length > 0 ? associatedClinics.map((clinic) => (
                   <div
                     key={clinic.id}
                     className="p-4 rounded-xl border border-neutral-100 bg-neutral-50/30 hover:bg-blue-50/20 hover:border-neutral-200 hover:shadow-sm transition-all flex flex-col sm:flex-row sm:items-center justify-between gap-4 group cursor-pointer"
@@ -100,15 +166,19 @@ export function ProfileSection() {
                           {clinic.name}
                         </h4>
                         <p className="text-sm text-neutral-500 mt-0.5">
-                          {clinic.address}
+                          {clinic.address || "Address not available"}
                         </p>
                       </div>
                     </div>
                     <span className="inline-flex bg-white border border-neutral-200 text-neutral-600 text-[11px] font-bold px-3 py-1 rounded-full uppercase tracking-wider whitespace-nowrap shadow-sm">
-                      {clinic.role}
+                      Associated Clinic
                     </span>
                   </div>
-                ))}
+                )) : (
+                  <div className="rounded-lg border border-dashed border-neutral-200 bg-neutral-50 p-4 text-sm text-neutral-500">
+                    No clinic assignment found.
+                  </div>
+                )}
               </div>
             </div>
           </div>
@@ -137,7 +207,7 @@ export function ProfileSection() {
                       Email
                     </p>
                     <p className="text-[15px] font-medium text-neutral-900 truncate group-hover:text-blue-700 transition-colors">
-                      {DOCTOR_PROFILE.email}
+                      {currentUser?.email || "Not available"}
                     </p>
                   </div>
                 </li>
@@ -151,7 +221,7 @@ export function ProfileSection() {
                       Phone
                     </p>
                     <p className="text-[15px] font-medium text-neutral-900 group-hover:text-blue-700 transition-colors">
-                      {DOCTOR_PROFILE.phone}
+                      {associatedClinics[0]?.phone || "Not available"}
                     </p>
                   </div>
                 </li>
@@ -165,7 +235,7 @@ export function ProfileSection() {
                       Location
                     </p>
                     <p className="text-[15px] font-medium text-neutral-900 group-hover:text-blue-700 transition-colors">
-                      {DOCTOR_PROFILE.location}
+                      {locationLabel}
                     </p>
                   </div>
                 </li>

@@ -4,7 +4,7 @@
 const { sendWhatsAppMessage } = require('../services/whatsapp');
 const { logGeneralQuery } = require('../services/api');
 const { saveSession, clearUserData } = require('../services/session');
-const { getMessage } = require('../i18n');
+const { getMessage } = require('../core/i18n');
 
 async function handleProcedureSubmit(waId, session, lang) {
   try {

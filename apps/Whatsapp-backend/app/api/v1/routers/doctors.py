@@ -70,7 +70,10 @@ async def list_doctors(
         return doctors
     except Exception as e:
         logger.error("Failed to list doctors", error=str(e))
-        return []
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail={"error": "InternalError", "message": "Failed to list doctors"}
+        )
 
 
 @router.get(

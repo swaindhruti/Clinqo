@@ -3,7 +3,7 @@ from uuid import UUID
 from datetime import date
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy import select, and_, func
-from sqlalchemy.orm import joinedload
+from sqlalchemy.orm import selectinload
 from app.models import ProcedureBooking, Patient
 
 
@@ -31,8 +31,8 @@ class ProcedureRepository:
         limit: Optional[int] = None,
     ) -> List[ProcedureBooking]:
         query = select(ProcedureBooking).options(
-            joinedload(ProcedureBooking.patient),
-            joinedload(ProcedureBooking.clinic),
+            selectinload(ProcedureBooking.patient),
+            selectinload(ProcedureBooking.clinic),
         )
 
         if clinic_id:
@@ -73,8 +73,8 @@ class ProcedureRepository:
     async def get_by_id(self, booking_id: UUID) -> Optional[ProcedureBooking]:
         result = await self.db.execute(
             select(ProcedureBooking).options(
-                joinedload(ProcedureBooking.patient),
-                joinedload(ProcedureBooking.clinic),
+                selectinload(ProcedureBooking.patient),
+                selectinload(ProcedureBooking.clinic),
             ).where(ProcedureBooking.id == booking_id)
         )
         return result.scalar_one_or_none()

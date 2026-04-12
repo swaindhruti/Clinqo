@@ -5,39 +5,50 @@
  *        "Hi" → menu (view upcoming appointments and procedures)
  */
 
-const { sendWhatsAppMessage, sendWhatsAppButtons, sendWhatsAppList } = require('./services/whatsapp');
+const { sendWhatsAppMessage, sendWhatsAppButtons, sendWhatsAppList } = require('../services/whatsapp');
 const {
   isMessageProcessed, markMessageProcessed,
   getSession, saveSession, createSession,
   clearUserData, resetBookingFields, redisClient
-} = require('./services/session');
+} = require('../services/session');
 const {
   fetchClinicById,
   fetchUpcomingAppointmentsByPhone,
   fetchUpcomingProceduresByPhone,
-} = require('./services/api');
-const { handlePatientCreation, handleRepeatPatientLookup } = require('./handlers/patient');
+} = require('../services/api');
+const { handlePatientCreation, handleRepeatPatientLookup } = require('../handlers/patient');
 const {
   handleShowSubCategories, sendDetailQuestion,
   handleShowDoctors, handleShowDates, handleShowSlots,
   sendConsultationConfirmation, sendProcedureConfirmation, handleBooking
-} = require('./handlers/booking');
-const { handleQueryLogged } = require('./handlers/query');
+} = require('../handlers/booking');
+const { handleQueryLogged } = require('../handlers/query');
 
 const { getMessage, getGender, getLanguageCode } = require('./i18n');
 const { VISIT_TYPES, getVisitTypeByIndex, getDetailQuestions } = require('./visit-types');
 
 // Regex to extract clinic UUID from message:
 // supports both "... (uuid)" and plain "... uuid ..." formats.
-const CLINIC_ID_BRACKET_REGEX = /\(([a-f0-9]{8}-[a-f0-9]{4}-[a-f0-9]{4}-[a-f0-9]{4}-[a-f0-9]{12})\)/i;
+// Regex to extract clinic identifiers from message:
+// supports UUIDs, short ids like c1, and bracketed forms such as "(... )".
+const CLINIC_ID_BRACKET_REGEX = /\(([^()\s]{2,64})\)/i;
 const CLINIC_ID_UUID_REGEX = /\b([a-f0-9]{8}-[a-f0-9]{4}-[a-f0-9]{4}-[a-f0-9]{4}-[a-f0-9]{12})\b/i;
+const CLINIC_ID_SHORT_REGEX = /\b(clinic[_-]?[a-z0-9]{1,32}|c\d+)\b/i;
+const CLINIC_ID_BOOKING_TEXT_REGEX = /book\s+an\s+appointment\s+([a-z0-9][a-z0-9-]{7,63})/i;
+const CLINIC_ID_GENERIC_HYPHEN_REGEX = /\b([a-z0-9]{6,}-[a-z0-9-]{6,})\b/i;
 
 function extractClinicIdFromMessage(text) {
   if (!text) return null;
   const bracketMatch = text.match(CLINIC_ID_BRACKET_REGEX);
   if (bracketMatch) return bracketMatch[1];
+  const bookingTextMatch = text.match(CLINIC_ID_BOOKING_TEXT_REGEX);
+  if (bookingTextMatch) return bookingTextMatch[1];
   const uuidMatch = text.match(CLINIC_ID_UUID_REGEX);
-  return uuidMatch ? uuidMatch[1] : null;
+  if (uuidMatch) return uuidMatch[1];
+  const genericHyphenMatch = text.match(CLINIC_ID_GENERIC_HYPHEN_REGEX);
+  if (genericHyphenMatch) return genericHyphenMatch[1];
+  const shortMatch = text.match(CLINIC_ID_SHORT_REGEX);
+  return shortMatch ? shortMatch[1] : null;
 }
 
 function getClinicLocalDateString(date = new Date()) {

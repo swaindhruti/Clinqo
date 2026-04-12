@@ -4,7 +4,7 @@
 const { sendWhatsAppMessage, sendWhatsAppButtons } = require('../services/whatsapp');
 const { createPatientRecord, searchPatientByPhone } = require('../services/api');
 const { saveSession, clearUserData } = require('../services/session');
-const { getMessage } = require('../i18n');
+const { getMessage } = require('../core/i18n');
 
 async function sendVisitTypeMenu(waId, lang) {
   try {

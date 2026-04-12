@@ -1,7 +1,7 @@
 /**
  * services/session.js - Redis session management (v6)
  */
-const redisClient = require('../redis-config');
+const redisClient = require('../config/redis-config');
 
 // ==================== User Locking ====================
 

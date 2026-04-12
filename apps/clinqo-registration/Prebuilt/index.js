@@ -3,7 +3,7 @@ const bodyParser = require('body-parser');
 const crypto = require('crypto');
 const dotenv = require('dotenv');
 const path = require('path');
-const { processIncomingMessage } = require('./chatbot');
+const { processIncomingMessage } = require('./core/chatbot');
 
 dotenv.config({ path: path.join(__dirname, '.env') });
 const app = express();
@@ -15,6 +15,7 @@ app.use(bodyParser.json({
 
 const VERIFY_TOKEN = process.env.VERIFY_TOKEN;
 const APP_SECRET = process.env.APP_SECRET;
+const PORT = Number(process.env.PORT || 8080);
 
 app.get('/', (req, res) => {
   res.send('🤖 Clinqo WhatsApp Chatbot - Running');
@@ -78,9 +79,9 @@ app.post('/webhook', async (req, res) => {
   }
 });
 
-app.listen(8080, () => {
-  console.log('\n🚀 Express server started on port 8080');
+app.listen(PORT, () => {
+  console.log(`\n🚀 Express server started on port ${PORT}`);
   console.log('📱 WhatsApp Chatbot initialized');
-  console.log('🌐 Ngrok URL: Use ngrok http 8080 in another terminal');
+  console.log(`🌐 Webhook server ready on port ${PORT}`);
   console.log('\n' + '='.repeat(60));
 });
