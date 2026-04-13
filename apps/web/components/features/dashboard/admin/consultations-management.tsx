@@ -153,7 +153,7 @@ export function ConsultationsManagement() {
         patientName:
           app.patient_name || `Patient ${app.patient_id.substring(0, 6)}`,
         doctorName: app.doctor_name || "Dr. Smith Sandbox",
-        clinicName: "Global Network",
+        clinicName: app.doctor?.clinic?.name || "Clinic Not Assigned",
         dateTime: `${app.date} - Slot ${app.slot}`,
         status:
           app.status === "booked"

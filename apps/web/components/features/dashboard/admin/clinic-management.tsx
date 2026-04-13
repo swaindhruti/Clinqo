@@ -13,12 +13,14 @@ import {
   XCircle,
   Eye,
   Trash2,
-  Copy,
+  MessageCircle,
+  QrCode,
 } from "lucide-react";
 import { DataTable } from "@/components/ui/data-table";
 import { ColumnDef } from "@tanstack/react-table";
 import { apiClient } from "@/lib/api-client";
 import { ClinicDetails } from "./clinic-details";
+import QRCode from "qrcode";
 
 // Type Definition
 export type Clinic = {
@@ -90,9 +92,11 @@ export function ClinicManagement() {
 
   const buildClinicChatLink = (clinicId: string) => {
     const phoneNumber = "9348840861";
-    const message = `Book an appointment ${clinicId}`;
+    const message = buildClinicBookingText(clinicId);
     return `https://wa.me/${phoneNumber}?text=${encodeURIComponent(message)}`;
   };
+
+  const buildClinicBookingText = (clinicId: string) => `Book an appointment ${clinicId}`;
 
   const handleCopyClinicChatLink = async (clinicId: string) => {
     const link = buildClinicChatLink(clinicId);
@@ -102,6 +106,65 @@ export function ClinicManagement() {
       setTimeout(() => setCopiedClinicId((current) => (current === clinicId ? null : current)), 2000);
     } catch {
       alert(`Copy this link: ${link}`);
+    }
+  };
+
+  const handleDownloadClinicQr = async (clinic: Clinic) => {
+    try {
+      const qrPayload = buildClinicChatLink(clinic.id);
+      const qrDataUrl = await QRCode.toDataURL(qrPayload, {
+        width: 640,
+        margin: 1,
+        errorCorrectionLevel: "H",
+      });
+
+      const canvas = document.createElement("canvas");
+      canvas.width = 1080;
+      canvas.height = 1350;
+      const context = canvas.getContext("2d");
+      if (!context) throw new Error("Unable to create QR canvas");
+
+      context.fillStyle = "#ffffff";
+      context.fillRect(0, 0, canvas.width, canvas.height);
+
+      context.strokeStyle = "#e5e7eb";
+      context.lineWidth = 4;
+      context.strokeRect(60, 60, canvas.width - 120, canvas.height - 120);
+
+      context.fillStyle = "#111827";
+      context.font = "bold 54px Inter, system-ui, sans-serif";
+      context.textAlign = "center";
+      context.fillText(clinic.name, canvas.width / 2, 170);
+
+      context.fillStyle = "#374151";
+      context.font = "34px Inter, system-ui, sans-serif";
+      context.fillText("Scan to open WhatsApp booking", canvas.width / 2, 230);
+
+      const qrImage = await new Promise<HTMLImageElement>((resolve, reject) => {
+        const image = new Image();
+        image.onload = () => resolve(image);
+        image.onerror = () => reject(new Error("Failed to render QR image"));
+        image.src = qrDataUrl;
+      });
+
+      const qrSize = 700;
+      const qrX = (canvas.width - qrSize) / 2;
+      const qrY = 290;
+      context.drawImage(qrImage, qrX, qrY, qrSize, qrSize);
+
+      context.fillStyle = "#6b7280";
+      context.font = "28px Inter, system-ui, sans-serif";
+      context.fillText("QR opens WhatsApp booking link", canvas.width / 2, 1070);
+      context.fillText(`Clinic ID: ${clinic.id}`, canvas.width / 2, 1120);
+
+      const anchor = document.createElement("a");
+      const fileSafeName = clinic.name.toLowerCase().replace(/[^a-z0-9]+/g, "-");
+      anchor.href = canvas.toDataURL("image/png");
+      anchor.download = `${fileSafeName || "clinic"}-booking-qr.png`;
+      anchor.click();
+    } catch (error) {
+      const message = error instanceof Error ? error.message : "Unable to generate QR image";
+      alert(message);
     }
   };
 
@@ -348,8 +411,17 @@ export function ClinicManagement() {
               className="h-8"
               onClick={() => handleCopyClinicChatLink(clinic.id)}
             >
-              <Copy className="mr-1 h-3.5 w-3.5" />
+              <MessageCircle className="mr-1 h-3.5 w-3.5" />
               {copiedClinicId === clinic.id ? "Copied" : "Copy Chat Link"}
+            </Button>
+            <Button
+              variant="outline"
+              size="sm"
+              className="h-8"
+              onClick={() => handleDownloadClinicQr(clinic)}
+            >
+              <QrCode className="mr-1 h-3.5 w-3.5" />
+              Download QR
             </Button>
             {clinic.status === "applicant" && (
               <>

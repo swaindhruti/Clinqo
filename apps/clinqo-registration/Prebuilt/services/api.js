@@ -44,7 +44,15 @@ async function fetchClinicById(clinicId) {
       // ignore fallback failure; original error is logged below
     }
 
-    console.error('❌ Error fetching clinic:', error.response?.data || error.message);
+    const debugPayload = {
+      baseUrl: API_BASE_URL,
+      clinicId,
+      status: error.response?.status,
+      data: error.response?.data,
+      code: error.code,
+      message: error.message,
+    };
+    console.error('❌ Error fetching clinic:', debugPayload);
     return null;
   }
 }

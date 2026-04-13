@@ -39,6 +39,19 @@ docker build -t clinqo-bot .
 docker run -d --name clinqo-bot --env-file .env -p 8080:8080 --restart unless-stopped clinqo-bot
 ```
 
+Docker Compose:
+
+```bash
+docker compose up -d --build
+docker compose logs -f bot
+docker compose down
+```
+
+Notes:
+
+- In Docker, bot uses `http://host.docker.internal:8000/api/v1` by default so it can reach backend running on host.
+- To use a different backend URL, set `BOT_API_BASE_URL` before compose up.
+
 Syntax checks:
 
 ```bash

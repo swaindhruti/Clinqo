@@ -2,6 +2,7 @@ from fastapi import APIRouter, Depends, HTTPException, status, Query
 from uuid import UUID
 from datetime import date
 from typing import List, Optional
+from sqlalchemy.exc import ProgrammingError
 from app.schemas import (
     DoctorCreate, DoctorResponse, AvailabilityUpsert, 
     AvailabilityResponse, DoctorWeeklySlotCreate, DoctorWeeklySlotResponse, ErrorResponse
@@ -68,6 +69,18 @@ async def list_doctors(
 
         doctors = await service.list_doctors(specialty=specialty, clinic_id=clinic_id)
         return doctors
+    except ProgrammingError as e:
+        error_text = str(getattr(e, "orig", e)).lower()
+        if "doctor_masters.clinic_id" in error_text and "does not exist" in error_text:
+            logger.warning(
+                "doctor_masters.clinic_id missing; returning empty doctor list until migrations are applied"
+            )
+            return []
+        logger.error("Failed to list doctors", error=str(e))
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail={"error": "InternalError", "message": "Failed to list doctors"}
+        )
     except Exception as e:
         logger.error("Failed to list doctors", error=str(e))
         raise HTTPException(

@@ -29,6 +29,7 @@ export function CheckInDialog({ open, onOpenChange, onSuccess }: CheckInDialogPr
   const [isScanning, setIsScanning] = useState(false);
   const qrCodeRef = useRef<Html5Qrcode | null>(null);
   const scannerActiveRef = useRef(false);
+  const stoppingRef = useRef(false);
 
   const normalizeCheckInCode = (value: string) => {
     const raw = value.trim();
@@ -114,7 +115,8 @@ export function CheckInDialog({ open, onOpenChange, onSuccess }: CheckInDialogPr
           },
           (decodedText) => {
             if (scannerActiveRef.current) {
-              // We found a code! Stop immediately and process
+              scannerActiveRef.current = false;
+              // Stop immediately and process
               stopScanner().then(() => {
                 handleCheckIn(decodedText);
               });
@@ -133,6 +135,7 @@ export function CheckInDialog({ open, onOpenChange, onSuccess }: CheckInDialogPr
                 },
                 (decodedText) => {
                     if (scannerActiveRef.current) {
+                      scannerActiveRef.current = false;
                       stopScanner().then(() => {
                         handleCheckIn(decodedText);
                       });
@@ -150,16 +153,21 @@ export function CheckInDialog({ open, onOpenChange, onSuccess }: CheckInDialogPr
   };
 
   const stopScanner = async () => {
+    // Prevent concurrent stop calls
+    if (stoppingRef.current) return;
+    stoppingRef.current = true;
+    
     scannerActiveRef.current = false;
     if (qrCodeRef.current) {
       try {
         await qrCodeRef.current.stop();
       } catch (err) {
-        console.error("Failed to stop scanner", err);
+        // Silently ignore errors during stop - already stopped or transitioning
       }
       qrCodeRef.current = null;
     }
     setIsScanning(false);
+    stoppingRef.current = false;
   };
 
   useEffect(() => {
@@ -171,13 +179,16 @@ export function CheckInDialog({ open, onOpenChange, onSuccess }: CheckInDialogPr
     }
     
     return () => {
+      // On unmount, cleanly stop the scanner if it's running
       scannerActiveRef.current = false;
-      if (qrCodeRef.current) {
+      if (!stoppingRef.current && qrCodeRef.current) {
         qrCodeRef.current.stop().then(() => {
           qrCodeRef.current = null;
           setIsScanning(false);
         }).catch(() => {
-          console.error("Cleanup error during unmount");
+          // Silently ignore cleanup errors
+          qrCodeRef.current = null;
+          setIsScanning(false);
         });
       }
     };

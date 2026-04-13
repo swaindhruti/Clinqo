@@ -9,12 +9,22 @@ export interface Patient {
   created_at: string;
 }
 
+export interface Clinic {
+  id: string;
+  name: string;
+  address?: string | null;
+  phone?: string | null;
+  specialty?: string | null;
+  created_at?: string;
+}
+
 export interface Doctor {
   id?: string;
   name: string;
   code: string;
   specialty: string;
   clinic_id?: string | null;
+  clinic?: Clinic | null;
 }
 
 export interface DoctorAvailability {
